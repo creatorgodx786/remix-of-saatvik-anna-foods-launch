@@ -1,3 +1,4 @@
+import wetlandsAsset from "@/assets/bihar-wetlands.webp.asset.json";
 import { Reveal } from "./Reveal";
 
 const STEPS = [
