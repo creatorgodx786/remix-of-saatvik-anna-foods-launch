@@ -1,13 +1,22 @@
 import { useState } from "react";
+import { Minus, Plus } from "lucide-react";
 import makhanaAsset from "@/assets/raw-makhana.png.asset.json";
+import bowlAsset from "@/assets/raw-makhana-bowl.webp.asset.json";
 import { PRODUCT } from "@/data/site";
 import { BuyButton } from "./BuyButton";
 import { Reveal } from "./Reveal";
 
 export function ProductSection() {
-  const packs = PRODUCT.packs as readonly { id: string; size: string; priceLabel: string }[];
+  const packs = PRODUCT.packs as readonly {
+    id: string;
+    size: string;
+    price: number;
+    priceLabel: string;
+  }[];
   const [selected, setSelected] = useState(packs[1]!.id);
+  const [qty, setQty] = useState(1);
   const pack = packs.find((p) => p.id === selected) ?? packs[0]!;
+  const total = pack.price * qty;
 
   return (
     <section id="product" className="border-y border-border/60 bg-cream py-20 lg:py-28">
