@@ -5,8 +5,9 @@ import { BuyButton } from "./BuyButton";
 import { Reveal } from "./Reveal";
 
 export function ProductSection() {
-  const [selected, setSelected] = useState(PRODUCT.packs[1].id);
-  const pack = PRODUCT.packs.find((p) => p.id === selected) ?? PRODUCT.packs[0];
+  const packs = PRODUCT.packs as readonly { id: string; size: string; priceLabel: string }[];
+  const [selected, setSelected] = useState(packs[1]!.id);
+  const pack = packs.find((p) => p.id === selected) ?? packs[0]!;
 
   return (
     <section id="product" className="border-y border-border/60 bg-cream py-20 lg:py-28">
