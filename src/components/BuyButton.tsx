@@ -16,11 +16,11 @@ export function BuyButton({ children, variant = "solid", className = "", label }
   const [notice, setNotice] = useState(false);
 
   const base =
-    "inline-flex items-center justify-center rounded-full px-8 py-3.5 text-xs font-medium tracking-[0.18em] uppercase transition-all duration-300";
+    "inline-flex items-center justify-center rounded-full px-8 py-3.5 text-xs font-medium tracking-[0.18em] uppercase transition-all duration-200 ease-out";
   const styles =
     variant === "solid"
-      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:-translate-y-0.5 shadow-[var(--shadow-soft)]"
-      : "border border-primary/25 text-primary hover:border-primary/60 hover:-translate-y-0.5";
+      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:-translate-y-0.5 shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-product)]"
+      : "border border-primary/25 text-primary hover:border-primary/60 hover:-translate-y-0.5 hover:shadow-[var(--shadow-soft)]";
 
   if (PURCHASE.url) {
     return (

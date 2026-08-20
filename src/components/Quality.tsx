@@ -10,7 +10,7 @@ const POINTS = [
 
 export function Quality() {
   return (
-    <section className="py-20 lg:py-28">
+    <section className="py-16 lg:py-24">
       <div className="mx-auto max-w-7xl px-5 lg:px-10">
         <Reveal className="max-w-xl">
           <p className="eyebrow">Standards</p>
@@ -20,10 +20,10 @@ export function Quality() {
           <div className="rule-gold mt-6" />
         </Reveal>
 
-        <div className="mt-14 grid gap-px overflow-hidden rounded-2xl bg-border sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid gap-px overflow-hidden rounded-2xl bg-border sm:grid-cols-2 lg:grid-cols-3">
           {POINTS.map((p, i) => (
             <Reveal key={p.title} delay={i * 80}>
-              <article className="h-full bg-background p-8 transition-colors duration-500 hover:bg-mist">
+              <article className="h-full bg-background p-7 transition-all duration-500 hover:bg-mist lg:p-8">
                 <h3 className="text-sm font-medium tracking-[0.2em] text-primary uppercase">
                   {p.title}
                 </h3>

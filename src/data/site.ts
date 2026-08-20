@@ -41,10 +41,10 @@ export const PRODUCT = {
 } as const;
 
 export const NUTRITION = [
-  { value: "120", label: "Calories" },
-  { value: "4", label: "Protein" },
-  { value: "2", label: "Fiber" },
-  { value: "150", label: "Sodium" },
+  { value: "120", unit: "kcal", label: "Calories" },
+  { value: "4", unit: "g", label: "Protein" },
+  { value: "2", unit: "g", label: "Fiber" },
+  { value: "150", unit: "mg", label: "Sodium" },
 ] as const;
 
 export const CONTACT = {

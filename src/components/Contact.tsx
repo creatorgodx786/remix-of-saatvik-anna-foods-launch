@@ -15,12 +15,12 @@ export function Contact() {
         </Reveal>
 
         <Reveal delay={120}>
-          <dl className="grid gap-8 sm:grid-cols-2">
+          <dl className="grid gap-10 sm:grid-cols-2">
             <div className="flex min-w-0 gap-4">
               <Phone className="mt-1 h-4 w-4 shrink-0 text-gold" />
               <div className="min-w-0">
                 <dt className="eyebrow">Phone</dt>
-                <dd className="mt-2 text-lg text-primary">
+                <dd className="mt-2 text-xl text-primary">
                   <a href={`tel:${CONTACT.phone}`} className="hover:text-leaf">
                     {CONTACT.phone}
                   </a>
@@ -31,7 +31,7 @@ export function Contact() {
               <Mail className="mt-1 h-4 w-4 shrink-0 text-gold" />
               <div className="min-w-0">
                 <dt className="eyebrow">Email</dt>
-                <dd className="mt-2 truncate text-lg text-primary">
+                <dd className="mt-2 truncate text-xl text-primary">
                   <a href={`mailto:${CONTACT.email}`} className="hover:text-leaf">
                     {CONTACT.email}
                   </a>
@@ -42,7 +42,7 @@ export function Contact() {
               <MapPin className="mt-1 h-4 w-4 shrink-0 text-gold" />
               <div className="min-w-0">
                 <dt className="eyebrow">Address</dt>
-                <dd className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                <dd className="mt-2 text-base leading-relaxed text-foreground/80">
                   {CONTACT.addressLines.map((line) => (
                     <span key={line} className="block">
                       {line}
