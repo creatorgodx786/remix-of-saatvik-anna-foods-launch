@@ -44,7 +44,7 @@ export function ProductSection() {
             <fieldset className="mt-9">
               <legend className="eyebrow mb-4">Select pack size</legend>
               <div className="flex flex-wrap gap-3">
-                {PRODUCT.packs.map((p) => {
+                {packs.map((p) => {
                   const active = p.id === selected;
                   return (
                     <button
