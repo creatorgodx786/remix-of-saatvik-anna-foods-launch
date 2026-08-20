@@ -6,7 +6,7 @@ export function Hero() {
   return (
     <section
       id="home"
-      className="relative overflow-hidden bg-gradient-to-b from-mist via-background to-background pt-28 pb-16 lg:pt-36 lg:pb-24"
+      className="relative overflow-hidden bg-gradient-to-b from-mist via-background to-background pt-24 pb-10 lg:pt-32 lg:pb-16"
     >
       <div
         aria-hidden
@@ -16,7 +16,7 @@ export function Hero() {
         <div className="animate-hero-text max-w-xl">
           <p className="eyebrow">{BRAND.name}</p>
           <div className="rule-gold mt-5" />
-          <h1 className="mt-6 font-display text-[3.6rem] leading-[0.9] font-semibold tracking-tight text-primary sm:text-8xl lg:text-[9rem]">
+          <h1 className="mt-6 font-display text-[3.6rem] leading-[0.9] font-semibold tracking-tight text-primary sm:text-8xl lg:text-[7.5rem]">
             RAW
             <br />
             MAKHANA
