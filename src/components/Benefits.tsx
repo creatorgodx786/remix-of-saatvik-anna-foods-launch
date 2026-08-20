@@ -12,12 +12,24 @@ export function Benefits() {
   return (
     <section id="why" className="bg-mist py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-5 lg:px-10">
-        <Reveal className="max-w-xl">
-          <p className="eyebrow">Why Saativik</p>
-          <h2 className="mt-4 font-display text-4xl font-semibold text-primary lg:text-6xl">
-            WHY RAW MAKHANA?
-          </h2>
-        </Reveal>
+        <div className="grid items-center gap-10 lg:grid-cols-[1fr_1fr] lg:gap-16">
+          <Reveal className="max-w-xl">
+            <p className="eyebrow">Why Saativik</p>
+            <h2 className="mt-4 font-display text-4xl font-semibold text-primary lg:text-6xl">
+              WHY RAW MAKHANA?
+            </h2>
+          </Reveal>
+          <Reveal delay={100}>
+            <figure className="overflow-hidden rounded-3xl">
+              <img
+                src={macroAsset.url}
+                alt="Close-up of raw makhana seeds"
+                loading="lazy"
+                className="h-56 w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.03] lg:h-72"
+              />
+            </figure>
+          </Reveal>
+        </div>
 
         <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {ITEMS.map((item, i) => (
