@@ -1,3 +1,4 @@
+import macroAsset from "@/assets/macro-raw-makhana.png.asset.json";
 import { Reveal } from "./Reveal";
 
 const ITEMS = [
