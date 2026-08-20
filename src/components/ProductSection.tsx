@@ -89,14 +89,38 @@ export function ProductSection() {
               </div>
             </fieldset>
 
+            <div className="mt-10">
+              <p className="eyebrow mb-4">Quantity</p>
+              <div className="inline-flex items-center gap-5 rounded-full border border-border bg-background px-3 py-2">
+                <button
+                  type="button"
+                  aria-label="Decrease quantity"
+                  onClick={() => setQty((q) => Math.max(1, q - 1))}
+                  disabled={qty <= 1}
+                  className="grid h-9 w-9 place-items-center rounded-full text-primary transition-colors duration-200 hover:bg-mist disabled:opacity-40"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span aria-live="polite" className="min-w-[2ch] text-center text-base text-primary">
+                  {qty}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Increase quantity"
+                  onClick={() => setQty((q) => Math.min(99, q + 1))}
+                  className="grid h-9 w-9 place-items-center rounded-full text-primary transition-colors duration-200 hover:bg-mist"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
             <div className="mt-10 flex flex-wrap items-end gap-8">
-              <div key={pack.id} className="animate-price">
-                <p className="eyebrow">Price</p>
-                <p className="mt-1 font-display text-6xl font-semibold text-primary">
-                  {pack.priceLabel}
-                </p>
+              <div key={`${pack.id}-${qty}`} className="animate-price">
+                <p className="eyebrow">Total</p>
+                <p className="mt-1 font-display text-6xl font-semibold text-primary">₹{total}</p>
                 <p className="mt-1 text-xs tracking-[0.18em] text-muted-foreground uppercase">
-                  {pack.size} pack
+                  {qty} × {pack.size} pack · {pack.priceLabel} each
                 </p>
               </div>
               <BuyButton label={`Buy Raw Makhana ${pack.size}`}>Buy Now</BuyButton>
