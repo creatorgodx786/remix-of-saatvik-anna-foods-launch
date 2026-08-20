@@ -48,7 +48,7 @@ export function Footer() {
 
           <div>
             <p className="eyebrow">Contact</p>
-            <address className="mt-5 space-y-2 text-sm leading-relaxed text-muted-foreground not-italic">
+            <address className="mt-5 space-y-2 text-sm leading-relaxed text-foreground/80 not-italic">
               <a href={`tel:${CONTACT.phone}`} className="block hover:text-primary">
                 {CONTACT.phone}
               </a>
@@ -69,8 +69,8 @@ export function Footer() {
         <div className="mt-14 grid gap-6 border-t border-border pt-8 text-xs leading-relaxed text-muted-foreground lg:grid-cols-2">
           <div>
             <p className="tracking-[0.2em] uppercase">Business details</p>
-            <p className="mt-2">Registered enterprise name: {BRAND.legalName}</p>
-            <p>Udyam Registration Number: {BRAND.udyam}</p>
+            <p className="mt-2 text-sm text-foreground/80">Registered enterprise name: {BRAND.legalName}</p>
+            <p className="text-sm text-foreground/80">Udyam Registration Number: {BRAND.udyam}</p>
           </div>
           <div>
             <p className="tracking-[0.2em] uppercase">Returns</p>

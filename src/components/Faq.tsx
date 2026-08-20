@@ -38,7 +38,7 @@ export function Faq() {
                   className="grid transition-all duration-500 ease-out"
                   style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
                 >
-                  <div className="overflow-hidden">
+                  <div className={`overflow-hidden transition-opacity duration-500 ${isOpen ? "opacity-100" : "opacity-0"}`}>
                     <p className="pr-8 pb-6 text-sm leading-relaxed text-muted-foreground">
                       {f.a}
                     </p>
