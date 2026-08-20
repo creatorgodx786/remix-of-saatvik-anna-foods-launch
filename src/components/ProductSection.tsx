@@ -1,13 +1,22 @@
 import { useState } from "react";
+import { Minus, Plus } from "lucide-react";
 import makhanaAsset from "@/assets/raw-makhana.png.asset.json";
+import bowlAsset from "@/assets/raw-makhana-bowl.webp.asset.json";
 import { PRODUCT } from "@/data/site";
 import { BuyButton } from "./BuyButton";
 import { Reveal } from "./Reveal";
 
 export function ProductSection() {
-  const packs = PRODUCT.packs as readonly { id: string; size: string; priceLabel: string }[];
+  const packs = PRODUCT.packs as readonly {
+    id: string;
+    size: string;
+    price: number;
+    priceLabel: string;
+  }[];
   const [selected, setSelected] = useState(packs[1]!.id);
+  const [qty, setQty] = useState(1);
   const pack = packs.find((p) => p.id === selected) ?? packs[0]!;
+  const total = pack.price * qty;
 
   return (
     <section id="product" className="border-y border-border/60 bg-cream py-20 lg:py-28">
@@ -23,7 +32,7 @@ export function ProductSection() {
         </Reveal>
 
         <div className="mt-14 grid items-center gap-14 lg:grid-cols-[1.05fr_1fr] lg:gap-20">
-          <Reveal className="flex justify-center">
+          <Reveal className="flex flex-col items-center gap-6">
             <div className="relative flex w-full max-w-xl items-center justify-center rounded-3xl bg-background p-10 shadow-[var(--shadow-soft)]">
               <img
                 src={makhanaAsset.url}
@@ -34,6 +43,14 @@ export function ProductSection() {
                 className="product-hover h-auto w-full max-w-[24rem] object-contain"
               />
             </div>
+            <figure className="w-full max-w-xl overflow-hidden rounded-3xl">
+              <img
+                src={bowlAsset.url}
+                alt="A bowl of raw makhana beside fresh leaves"
+                loading="lazy"
+                className="h-56 w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.03] lg:h-64"
+              />
+            </figure>
           </Reveal>
 
           <Reveal delay={120}>
@@ -72,14 +89,38 @@ export function ProductSection() {
               </div>
             </fieldset>
 
+            <div className="mt-10">
+              <p className="eyebrow mb-4">Quantity</p>
+              <div className="inline-flex items-center gap-5 rounded-full border border-border bg-background px-3 py-2">
+                <button
+                  type="button"
+                  aria-label="Decrease quantity"
+                  onClick={() => setQty((q) => Math.max(1, q - 1))}
+                  disabled={qty <= 1}
+                  className="grid h-9 w-9 place-items-center rounded-full text-primary transition-colors duration-200 hover:bg-mist disabled:opacity-40"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span aria-live="polite" className="min-w-[2ch] text-center text-base text-primary">
+                  {qty}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Increase quantity"
+                  onClick={() => setQty((q) => Math.min(99, q + 1))}
+                  className="grid h-9 w-9 place-items-center rounded-full text-primary transition-colors duration-200 hover:bg-mist"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
             <div className="mt-10 flex flex-wrap items-end gap-8">
-              <div key={pack.id} className="animate-price">
-                <p className="eyebrow">Price</p>
-                <p className="mt-1 font-display text-6xl font-semibold text-primary">
-                  {pack.priceLabel}
-                </p>
+              <div key={`${pack.id}-${qty}`} className="animate-price">
+                <p className="eyebrow">Total</p>
+                <p className="mt-1 font-display text-6xl font-semibold text-primary">₹{total}</p>
                 <p className="mt-1 text-xs tracking-[0.18em] text-muted-foreground uppercase">
-                  {pack.size} pack
+                  {qty} × {pack.size} pack · {pack.priceLabel} each
                 </p>
               </div>
               <BuyButton label={`Buy Raw Makhana ${pack.size}`}>Buy Now</BuyButton>

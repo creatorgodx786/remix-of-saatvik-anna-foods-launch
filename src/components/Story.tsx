@@ -1,3 +1,4 @@
+import wetlandsAsset from "@/assets/bihar-wetlands.webp.asset.json";
 import { Reveal } from "./Reveal";
 
 const STEPS = [
@@ -20,6 +21,14 @@ export function Story() {
               OF BIHAR
             </h2>
             <div className="rule-gold mt-6" />
+            <figure className="mt-8 overflow-hidden rounded-3xl">
+              <img
+                src={wetlandsAsset.url}
+                alt="Lotus wetlands where makhana is traditionally harvested"
+                loading="lazy"
+                className="h-64 w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.03] lg:h-80"
+              />
+            </figure>
           </Reveal>
           <Reveal delay={100} className="space-y-5 text-base leading-relaxed text-muted-foreground">
             <p>
