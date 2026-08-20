@@ -1,24 +1,52 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Navbar } from "@/components/Navbar";
+import { Hero } from "@/components/Hero";
+import { ProductSection } from "@/components/ProductSection";
+import { Story } from "@/components/Story";
+import { Benefits } from "@/components/Benefits";
+import { HowToEnjoy } from "@/components/HowToEnjoy";
+import { Nutrition } from "@/components/Nutrition";
+import { Quality } from "@/components/Quality";
+import { About } from "@/components/About";
+import { Faq } from "@/components/Faq";
+import { Purchase } from "@/components/Purchase";
+import { Contact } from "@/components/Contact";
+import { Footer } from "@/components/Footer";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
+const title = "SAATIVIK ANNA FOODS — Raw Makhana from India";
+const description =
+  "Pure, naturally sourced Raw Makhana from SAATIVIK ANNA FOODS. Plain phool makhana in 100g, 200g and 400g packs, rooted in India's food tradition.";
+
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title },
+      { name: "description", content: description },
+      { property: "og:title", content: title },
+      { property: "og:description", content: description },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main>
+        <Hero />
+        <ProductSection />
+        <Story />
+        <Benefits />
+        <HowToEnjoy />
+        <Nutrition />
+        <Quality />
+        <About />
+        <Faq />
+        <Purchase />
+        <Contact />
+      </main>
+      <Footer />
     </div>
   );
 }
