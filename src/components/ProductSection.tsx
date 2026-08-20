@@ -32,7 +32,7 @@ export function ProductSection() {
         </Reveal>
 
         <div className="mt-14 grid items-center gap-14 lg:grid-cols-[1.05fr_1fr] lg:gap-20">
-          <Reveal className="flex justify-center">
+          <Reveal className="flex flex-col items-center gap-6">
             <div className="relative flex w-full max-w-xl items-center justify-center rounded-3xl bg-background p-10 shadow-[var(--shadow-soft)]">
               <img
                 src={makhanaAsset.url}
@@ -43,6 +43,14 @@ export function ProductSection() {
                 className="product-hover h-auto w-full max-w-[24rem] object-contain"
               />
             </div>
+            <figure className="w-full max-w-xl overflow-hidden rounded-3xl">
+              <img
+                src={bowlAsset.url}
+                alt="A bowl of raw makhana beside fresh leaves"
+                loading="lazy"
+                className="h-56 w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.03] lg:h-64"
+              />
+            </figure>
           </Reveal>
 
           <Reveal delay={120}>
