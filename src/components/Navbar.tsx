@@ -21,7 +21,7 @@ export function Navbar() {
         scrolled ? "bg-background/90 backdrop-blur-md border-b border-border/70" : "bg-transparent"
       }`}
     >
-      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3 lg:px-10">
+      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3 lg:grid-cols-[auto_1fr_auto] lg:gap-10 lg:px-10">
         <a href="#home" className="flex min-w-0 items-center gap-3">
           <img
             src={logoAsset.url}
