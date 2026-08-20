@@ -35,7 +35,7 @@ export function Navbar() {
           </span>
         </a>
 
-        <nav aria-label="Main" className="hidden items-center gap-8 lg:flex">
+        <nav aria-label="Main" className="hidden items-center justify-center gap-8 lg:flex">
           {NAV.map((item) => (
             <a
               key={item.href}
