@@ -1,11 +1,11 @@
 {
-  "version": 1,
   "asset_id": "5994a280-dffe-40cf-ac9f-bb5f3f39c285",
-  "project_id": "e4e06ef2-78f2-47f5-9603-9688f9702703",
-  "url": "/__l5e/assets-v1/5994a280-dffe-40cf-ac9f-bb5f3f39c285/raw-makhana.png",
-  "r2_key": "a/v1/e4e06ef2-78f2-47f5-9603-9688f9702703/5994a280-dffe-40cf-ac9f-bb5f3f39c285/raw-makhana.png",
-  "original_filename": "raw-makhana.png",
-  "size": 640844,
   "content_type": "image/png",
-  "created_at": "2026-08-20T19:31:10Z"
+  "created_at": "2026-08-20T19:31:10Z",
+  "original_filename": "raw-makhana.png",
+  "project_id": "dc3e473e-4ce0-4d0c-8b50-b61759c4ebd1",
+  "r2_key": "a/v1/dc3e473e-4ce0-4d0c-8b50-b61759c4ebd1/5994a280-dffe-40cf-ac9f-bb5f3f39c285/raw-makhana.png",
+  "size": 640844,
+  "url": "/__l5e/assets-v1/5994a280-dffe-40cf-ac9f-bb5f3f39c285/raw-makhana.png",
+  "version": 1
 }

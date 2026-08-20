@@ -1,11 +1,11 @@
 {
-  "version": 1,
   "asset_id": "9f9c35a8-1d26-426e-a6bc-cccada08a0bf",
-  "project_id": "e4e06ef2-78f2-47f5-9603-9688f9702703",
-  "url": "/__l5e/assets-v1/9f9c35a8-1d26-426e-a6bc-cccada08a0bf/saatvik-logo.png",
-  "r2_key": "a/v1/e4e06ef2-78f2-47f5-9603-9688f9702703/9f9c35a8-1d26-426e-a6bc-cccada08a0bf/saatvik-logo.png",
-  "original_filename": "saatvik-logo.png",
-  "size": 1761716,
   "content_type": "image/png",
-  "created_at": "2026-08-20T19:31:07Z"
+  "created_at": "2026-08-20T19:31:07Z",
+  "original_filename": "saatvik-logo.png",
+  "project_id": "dc3e473e-4ce0-4d0c-8b50-b61759c4ebd1",
+  "r2_key": "a/v1/dc3e473e-4ce0-4d0c-8b50-b61759c4ebd1/9f9c35a8-1d26-426e-a6bc-cccada08a0bf/saatvik-logo.png",
+  "size": 1761716,
+  "url": "/__l5e/assets-v1/9f9c35a8-1d26-426e-a6bc-cccada08a0bf/saatvik-logo.png",
+  "version": 1
 }
