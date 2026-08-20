@@ -1,10 +1,34 @@
+import roastAsset from "@/assets/roast-it.webp.asset.json";
+import seasonAsset from "@/assets/season-it.webp.asset.json";
+import snackAsset from "@/assets/snack-it.webp.asset.json";
+import cookAsset from "@/assets/cook-with-it.webp.asset.json";
 import { Reveal } from "./Reveal";
 
 const WAYS = [
-  { title: "ROAST IT", text: "Season and roast for a crisp snack." },
-  { title: "SEASON IT", text: "Add your preferred spices and flavors." },
-  { title: "SNACK IT", text: "Enjoy as an everyday snack." },
-  { title: "COOK WITH IT", text: "Use makhana in different recipes and preparations." },
+  {
+    title: "ROAST IT",
+    text: "Season and roast for a crisp snack.",
+    img: roastAsset.url,
+    alt: "Roasted makhana in a ceramic bowl",
+  },
+  {
+    title: "SEASON IT",
+    text: "Add your preferred spices and flavors.",
+    img: seasonAsset.url,
+    alt: "Seasoned makhana in a wooden bowl",
+  },
+  {
+    title: "SNACK IT",
+    text: "Enjoy as an everyday snack.",
+    img: snackAsset.url,
+    alt: "Plain makhana served in a bowl as a snack",
+  },
+  {
+    title: "COOK WITH IT",
+    text: "Use makhana in different recipes and preparations.",
+    img: cookAsset.url,
+    alt: "Makhana cooked in a curry",
+  },
 ];
 
 export function HowToEnjoy() {
@@ -20,18 +44,26 @@ export function HowToEnjoy() {
           </h2>
         </Reveal>
 
-        <ul className="mt-14 divide-y divide-border border-y border-border">
+        <ul className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {WAYS.map((w, i) => (
             <Reveal as="li" key={w.title} delay={i * 90}>
-              <div className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-6 py-7 transition-colors duration-500 hover:bg-mist sm:flex sm:justify-between sm:px-4">
-                <div className="min-w-0">
-                  <h3 className="font-display text-2xl font-semibold text-primary transition-transform duration-500 group-hover:translate-x-2 lg:text-4xl">
+              <article className="group h-full overflow-hidden rounded-2xl border border-border/70 bg-background transition-all duration-500 hover:-translate-y-1 hover:border-gold/50 hover:shadow-[var(--shadow-soft)]">
+                <div className="overflow-hidden">
+                  <img
+                    src={w.img}
+                    alt={w.alt}
+                    loading="lazy"
+                    className="aspect-[4/3] w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                  />
+                </div>
+                <div className="p-6">
+                  <span className="font-display text-sm text-gold">0{i + 1}</span>
+                  <h3 className="mt-2 font-display text-2xl font-semibold text-primary">
                     {w.title}
                   </h3>
-                  <p className="mt-2 text-sm text-muted-foreground">{w.text}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{w.text}</p>
                 </div>
-                <span className="shrink-0 font-display text-lg text-gold">0{i + 1}</span>
-              </div>
+              </article>
             </Reveal>
           ))}
         </ul>
