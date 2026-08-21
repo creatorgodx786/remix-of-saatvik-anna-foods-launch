@@ -88,7 +88,14 @@ export function Navbar() {
             ))}
           </ul>
           <div className="mt-7">
-            <BuyButton label="Buy Raw Makhana">Buy Now</BuyButton>
+            <a
+              href="#buy"
+              onClick={() => setOpen(false)}
+              aria-label="Go to purchase section"
+              className="inline-flex items-center justify-center rounded-full bg-primary px-8 py-3.5 text-xs font-medium tracking-[0.18em] text-primary-foreground uppercase shadow-[var(--shadow-soft)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-primary/90"
+            >
+              Buy Now
+            </a>
           </div>
         </nav>
       )}
