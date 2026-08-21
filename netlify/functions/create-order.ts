@@ -73,7 +73,7 @@ export default async (request: Request) => {
     const siteUrl = "https://saatvikannafoods.in";
 
     const cashfreeResponse = await fetch(
-      "https://api.cashfree.com/pg/orders",
+      "https://sandbox.cashfree.com/pg/orders",
       {
         method: "POST",
         headers: {
