@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
-import logoAsset from "@/assets/saatvik-logo.png.asset.json";
 import { BRAND, NAV } from "@/data/site";
 
 export function Navbar() {
@@ -23,7 +22,7 @@ export function Navbar() {
       <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3 lg:grid-cols-[auto_1fr_auto] lg:gap-10 lg:px-10">
         <a href="#home" className="flex min-w-0 items-center gap-3">
           <img
-            src={logoAsset.url}
+            src="/images/saatvik-logo.png"
             alt={`${BRAND.name} logo`}
             width={48}
             height={48}
