@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import logoAsset from "@/assets/saatvik-logo.png.asset.json";
 import { BRAND, NAV } from "@/data/site";
-import { BuyButton } from "./BuyButton";
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
