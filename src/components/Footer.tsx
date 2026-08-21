@@ -1,4 +1,3 @@
-import logoAsset from "@/assets/saatvik-logo.png.asset.json";
 import { BRAND, CONTACT, NAV } from "@/data/site";
 
 export function Footer() {
@@ -9,7 +8,7 @@ export function Footer() {
           <div>
             <div className="flex min-w-0 items-center gap-3">
               <img
-                src={logoAsset.url}
+                src="/images/saatvik-logo.png"
                 alt={`${BRAND.name} logo`}
                 width={56}
                 height={56}
