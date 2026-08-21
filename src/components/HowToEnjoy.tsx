@@ -1,32 +1,28 @@
-import roastAsset from "@/assets/roast-it.webp.asset.json";
-import seasonAsset from "@/assets/season-it.webp.asset.json";
-import snackAsset from "@/assets/snack-it.webp.asset.json";
-import cookAsset from "@/assets/cook-with-it.webp.asset.json";
 import { Reveal } from "./Reveal";
 
 const WAYS = [
   {
     title: "ROAST IT",
     text: "Season and roast for a crisp snack.",
-    img: roastAsset.url,
+    img: "/images/roast-it.webp",
     alt: "Roasted makhana in a ceramic bowl",
   },
   {
     title: "SEASON IT",
     text: "Add your preferred spices and flavors.",
-    img: seasonAsset.url,
+    img: "/images/season-it.webp",
     alt: "Seasoned makhana in a wooden bowl",
   },
   {
     title: "SNACK IT",
     text: "Enjoy as an everyday snack.",
-    img: snackAsset.url,
+    img: "/images/snack-it.webp",
     alt: "Plain makhana served in a bowl as a snack",
   },
   {
     title: "COOK WITH IT",
     text: "Use makhana in different recipes and preparations.",
-    img: cookAsset.url,
+    img: "/images/cook-with-it.webp",
     alt: "Makhana cooked in a curry",
   },
 ];
