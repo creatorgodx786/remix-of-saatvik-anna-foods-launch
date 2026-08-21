@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import logoAsset from "@/assets/saatvik-logo.png.asset.json";
 import { BRAND, NAV } from "@/data/site";
-import { BuyButton } from "./BuyButton";
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
@@ -49,9 +48,13 @@ export function Navbar() {
 
         <div className="flex items-center gap-3">
           <div className="hidden lg:block">
-            <BuyButton className="px-6 py-2.5" label="Buy Raw Makhana">
+            <a
+              href="#buy"
+              aria-label="Go to purchase section"
+              className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-2.5 text-xs font-medium tracking-[0.18em] text-primary-foreground uppercase shadow-[var(--shadow-soft)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-[var(--shadow-product)]"
+            >
               Buy Now
-            </BuyButton>
+            </a>
           </div>
           <button
             type="button"
@@ -84,7 +87,14 @@ export function Navbar() {
             ))}
           </ul>
           <div className="mt-7">
-            <BuyButton label="Buy Raw Makhana">Buy Now</BuyButton>
+            <a
+              href="#buy"
+              onClick={() => setOpen(false)}
+              aria-label="Go to purchase section"
+              className="inline-flex items-center justify-center rounded-full bg-primary px-8 py-3.5 text-xs font-medium tracking-[0.18em] text-primary-foreground uppercase shadow-[var(--shadow-soft)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-primary/90"
+            >
+              Buy Now
+            </a>
           </div>
         </nav>
       )}
