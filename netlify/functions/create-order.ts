@@ -1,4 +1,4 @@
-const CASHFREE_API_VERSION = "2025-01-01";
+const CASHFREE_API_VERSION = "2023-08-01";
 
 export default async (request: Request) => {
   if (request.method !== "POST") {
@@ -64,11 +64,10 @@ export default async (request: Request) => {
       );
     }
 
-    const orderId =
-      `SAATVIK_${Date.now()}_${Math.random()
-        .toString(36)
-        .substring(2, 8)
-        .toUpperCase()}`;
+    const orderId = `SAATVIK_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(2, 8)
+      .toUpperCase()}`;
 
     const siteUrl = "https://saatvikannafoods.in";
 
@@ -90,9 +89,10 @@ export default async (request: Request) => {
           order_currency: "INR",
 
           customer_details: {
-            customer_id: `customer_${customer.phone}`,
-            customer_name: customer.name,
-            customer_phone: customer.phone,
+            customer_id: `customer_${customer.phone.replace(/\D/g, "")}`,
+            customer_name: customer.name.trim(),
+            customer_phone: customer.phone.replace(/\D/g, ""),
+            customer_email: customer.email ? customer.email.trim() : "customer@example.com",
           },
 
           order_meta: {
@@ -116,15 +116,6 @@ export default async (request: Request) => {
 
     const responseText = await cashfreeResponse.text();
 
-    console.log("=== CASHFREE DEBUG ===");
-    console.log("Status:", cashfreeResponse.status);
-    console.log(
-      "Content-Type:",
-      cashfreeResponse.headers.get("content-type")
-    );
-    console.log("Response:", responseText);
-    console.log("======================");
-
     let data: any;
 
     try {
@@ -134,8 +125,6 @@ export default async (request: Request) => {
         JSON.stringify({
           error: "Cashfree returned a non-JSON response.",
           cashfree_status: cashfreeResponse.status,
-          cashfree_content_type:
-            cashfreeResponse.headers.get("content-type"),
           cashfree_response: responseText.substring(0, 1000),
         }),
         {
@@ -148,8 +137,6 @@ export default async (request: Request) => {
     }
 
     if (!cashfreeResponse.ok) {
-      console.error("Cashfree API error:", data);
-
       return new Response(
         JSON.stringify({
           error:
@@ -169,11 +156,6 @@ export default async (request: Request) => {
     }
 
     if (!data?.payment_session_id) {
-      console.error(
-        "Cashfree response did not contain payment_session_id:",
-        data
-      );
-
       return new Response(
         JSON.stringify({
           error: "Cashfree did not return a payment session ID.",
@@ -201,8 +183,6 @@ export default async (request: Request) => {
       }
     );
   } catch (error) {
-    console.error("CREATE ORDER ERROR:", error);
-
     return new Response(
       JSON.stringify({
         error: "Unable to create payment order.",
