@@ -114,20 +114,73 @@ export default async (request: Request) => {
       }
     );
 
-    const data = await cashfreeResponse.json();
+    const responseText = await cashfreeResponse.text();
+
+    console.log("=== CASHFREE DEBUG ===");
+    console.log("Status:", cashfreeResponse.status);
+    console.log(
+      "Content-Type:",
+      cashfreeResponse.headers.get("content-type")
+    );
+    console.log("Response:", responseText);
+    console.log("======================");
+
+    let data: any;
+
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      return new Response(
+        JSON.stringify({
+          error: "Cashfree returned a non-JSON response.",
+          cashfree_status: cashfreeResponse.status,
+          cashfree_content_type:
+            cashfreeResponse.headers.get("content-type"),
+          cashfree_response: responseText.substring(0, 1000),
+        }),
+        {
+          status: 502,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
 
     if (!cashfreeResponse.ok) {
-      console.error("Cashfree error:", data);
+      console.error("Cashfree API error:", data);
 
       return new Response(
         JSON.stringify({
           error:
             data?.message ||
-            data?.message?.toString() ||
+            data?.error ||
             "Cashfree could not create the order.",
+          cashfree_status: cashfreeResponse.status,
+          cashfree_response: data,
         }),
         {
           status: cashfreeResponse.status,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
+    if (!data?.payment_session_id) {
+      console.error(
+        "Cashfree response did not contain payment_session_id:",
+        data
+      );
+
+      return new Response(
+        JSON.stringify({
+          error: "Cashfree did not return a payment session ID.",
+          cashfree_response: data,
+        }),
+        {
+          status: 502,
           headers: {
             "Content-Type": "application/json",
           },
@@ -148,7 +201,7 @@ export default async (request: Request) => {
       }
     );
   } catch (error) {
-    console.error(error);
+    console.error("CREATE ORDER ERROR:", error);
 
     return new Response(
       JSON.stringify({
