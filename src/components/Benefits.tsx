@@ -1,4 +1,3 @@
-import macroAsset from "@/assets/macro-raw-makhana.png.asset.json";
 import { Reveal } from "./Reveal";
 
 const ITEMS = [
@@ -22,7 +21,7 @@ export function Benefits() {
           <Reveal delay={100}>
             <figure className="overflow-hidden rounded-3xl">
               <img
-                src={macroAsset.url}
+                src="/images/macro-raw-makhana.png"
                 alt="Close-up of raw makhana seeds"
                 loading="lazy"
                 className="h-56 w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.03] lg:h-72"
