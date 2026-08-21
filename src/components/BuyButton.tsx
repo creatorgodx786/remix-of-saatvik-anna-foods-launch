@@ -163,7 +163,7 @@ export function BuyButton({
       await loadCashfree();
 
       const response = await fetch(
-        "/.netlify/functions/create-cashfree-order",
+        "/.netlify/functions/create-order",
         {
           method: "POST",
           headers: {
