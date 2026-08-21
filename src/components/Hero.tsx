@@ -1,4 +1,3 @@
-import makhanaAsset from "@/assets/raw-makhana.png.asset.json";
 import { BRAND, PRODUCT } from "@/data/site";
 import { BuyButton } from "./BuyButton";
 
@@ -42,7 +41,7 @@ export function Hero() {
           />
           <div className="animate-product-in">
             <img
-              src={makhanaAsset.url}
+              src="/images/raw-makhana.png"
               alt={PRODUCT.alt}
               width={1024}
               height={1536}
