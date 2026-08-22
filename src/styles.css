@@ -1,0 +1,214 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * SAATIVIK ANNA FOODS design system.
+ * Palette: deep green, light natural green, white, subtle gold.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+
+  --color-leaf: var(--leaf);
+  --color-mist: var(--mist);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-cream: var(--cream);
+
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Jost", ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-soft: 0 24px 60px -30px color-mix(in oklab, var(--primary) 45%, transparent);
+  --shadow-product: 0 60px 90px -50px color-mix(in oklab, var(--primary) 60%, transparent);
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.995 0.006 130);
+  --foreground: oklch(0.26 0.05 152);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.26 0.05 152);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.26 0.05 152);
+  --primary: oklch(0.32 0.062 152);
+  --primary-foreground: oklch(0.985 0.008 120);
+  --secondary: oklch(0.955 0.028 140);
+  --secondary-foreground: oklch(0.3 0.06 152);
+  --muted: oklch(0.965 0.018 140);
+  --muted-foreground: oklch(0.52 0.032 150);
+  --accent: oklch(0.93 0.045 140);
+  --accent-foreground: oklch(0.3 0.06 152);
+  --destructive: oklch(0.55 0.19 27);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.9 0.024 140);
+  --input: oklch(0.9 0.024 140);
+  --ring: oklch(0.55 0.07 150);
+
+  --leaf: oklch(0.62 0.11 145);
+  --mist: oklch(0.975 0.019 140);
+  --cream: oklch(0.99 0.012 110);
+  --gold: oklch(0.74 0.11 85);
+  --gold-soft: oklch(0.88 0.06 90);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5.5rem;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+  }
+}
+
+@utility eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+@utility rule-gold {
+  height: 1px;
+  width: 3.5rem;
+  background: linear-gradient(
+    90deg,
+    var(--gold) 0%,
+    color-mix(in oklab, var(--gold) 20%, transparent) 100%
+  );
+}
+
+/* Motion */
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes productIn {
+  from {
+    opacity: 0;
+    transform: translateY(25px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes heroText {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes priceSwap {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-product-in {
+  animation: productIn 950ms cubic-bezier(0.22, 0.61, 0.36, 1) 180ms both;
+}
+
+@utility animate-hero-text {
+  animation: heroText 800ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@utility animate-price {
+  animation: priceSwap 400ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@utility product-hover {
+  transition: transform 500ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+  &:hover {
+    transform: translateY(-8px) scale(1.03);
+  }
+}
+
+@utility animate-rise {
+  animation: riseIn 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@utility reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 650ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 650ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  &[data-visible="true"] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
