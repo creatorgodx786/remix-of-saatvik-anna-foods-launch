@@ -222,11 +222,10 @@ export default async (request: Request) => {
         order_id: orderData.order_id,
         order_amount: orderData.order_amount,
         order_currency: orderData.order_currency || "INR",
-        order_tags: orderData.order_tags || {},
-        customer: {
-          name: orderData.customer_details?.customer_name || "",
-          phone: orderData.customer_details?.customer_phone || "",
-          email: orderData.customer_details?.customer_email || "",
+        order_tags: {
+          product: orderData.order_tags?.product || "Raw Makhana",
+          pack_size: orderData.order_tags?.pack_size || "100g",
+          quantity: orderData.order_tags?.quantity || "1",
         },
       }),
       {
