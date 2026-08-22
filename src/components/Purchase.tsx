@@ -11,6 +11,9 @@ export function Purchase() {
           <h2 className="mx-auto mt-4 max-w-2xl font-display text-4xl leading-[1.05] font-semibold text-primary lg:text-6xl">
             BRING HOME THE GOODNESS OF RAW MAKHANA
           </h2>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Secure online checkout available. Choose your pack and order directly.
+          </p>
         </Reveal>
 
         <Reveal delay={120}>

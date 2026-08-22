@@ -21,7 +21,7 @@ export function Hero() {
             MAKHANA
           </h1>
           <p className="mt-6 max-w-md text-base leading-relaxed text-muted-foreground">
-            Pure, naturally sourced makhana rooted in India&apos;s rich food tradition.
+            Pure, naturally sourced makhana rooted in India&apos;s rich food tradition. Shop online with secure checkout.
           </p>
           <div className="mt-9 flex flex-wrap items-start gap-4">
             <BuyButton label="Shop Raw Makhana">Shop Raw Makhana</BuyButton>

@@ -11,13 +11,12 @@ export const BRAND = {
 } as const;
 
 /**
- * Purchase destination. Payment is not connected yet.
- * When a checkout link becomes available, set `url` here and every
- * BUY button across the site will point to it.
+ * Purchase destination.
+ * Points to the on-page checkout section (#product).
  */
 export const PURCHASE = {
-  url: null as string | null,
-  unavailableMessage: "Online checkout is opening soon. Please call or email us to order.",
+  url: "#product",
+  unavailableMessage: "Secure online checkout available. Choose your pack and order directly.",
 } as const;
 
 export type Pack = {

@@ -193,6 +193,9 @@ export function ProductSection() {
               <p className="text-base leading-relaxed text-muted-foreground lg:text-lg">
                 {PRODUCT.description}
               </p>
+              <p className="mt-3 text-sm text-primary/80 font-medium">
+                Secure online checkout available. Choose your pack and order directly.
+              </p>
 
               <fieldset className="mt-10">
                 <legend className="eyebrow mb-4">
