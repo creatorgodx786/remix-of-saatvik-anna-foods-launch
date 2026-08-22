@@ -177,6 +177,42 @@ export default async (request: Request) => {
           : "Payment was not completed or was declined.");
     }
 
+    // Update order status in PostgreSQL database
+    try {
+      const { eq } = await import("drizzle-orm");
+      const { getDb } = await import("../../src/db/index");
+      const { orders } = await import("../../src/db/schema");
+      const db = getDb();
+
+      const existingOrderRes = await db
+        .select()
+        .from(orders)
+        .where(eq(orders.cashfreeOrderId, cleanOrderId))
+        .limit(1);
+
+      const existingOrder = existingOrderRes[0];
+      const newOrderStatus = hasSuccess ? "PAID" : existingOrder?.orderStatus || "UNPAID";
+
+      if (existingOrder) {
+        const paymentGroup = latestPayment?.payment_group || (latestPayment?.payment_method ? Object.keys(latestPayment.payment_method)[0] : null);
+        await db
+          .update(orders)
+          .set({
+            paymentStatus: computedStatus,
+            orderStatus: newOrderStatus,
+            cashfreePaymentId: latestPayment?.payment_id || existingOrder.cashfreePaymentId,
+            paymentMethod: paymentGroup ? String(paymentGroup).toUpperCase() : null,
+            bankReference: latestPayment?.bank_reference ? String(latestPayment.bank_reference) : null,
+            paymentCompletionTime: latestPayment?.payment_completion_time ? String(latestPayment.payment_completion_time) : null,
+            paymentMessage: latestPayment?.payment_message || message || null,
+            updatedAt: new Date(),
+          })
+          .where(eq(orders.cashfreeOrderId, cleanOrderId));
+      }
+    } catch (dbErr) {
+      console.error("[VERIFY_ORDER] DB update error:", dbErr);
+    }
+
     return new Response(
       JSON.stringify({
         status: computedStatus,

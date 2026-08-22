@@ -14,7 +14,7 @@ function netlifyFunctionsDevPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url?.split("?")[0];
-        if (url === "/.netlify/functions/create-order" || url === "/.netlify/functions/verify-order") {
+        if (url && url.startsWith("/.netlify/functions/")) {
           try {
             const env = loadEnv("development", process.cwd(), "");
             for (const [k, v] of Object.entries(env)) {
@@ -36,17 +36,19 @@ function netlifyFunctionsDevPlugin(): Plugin {
 
             const protocol = req.headers["x-forwarded-proto"] || "http";
             const host = req.headers.host || "localhost:8080";
-            const request = new Request(`${protocol}://${host}${req.url}`, {
-              method: req.method,
-              headers: req.headers as HeadersInit,
-              body: ["GET", "HEAD"].includes(req.method || "") ? undefined : bodyText,
-            });
+            const method = req.method || "GET";
+            const isGetOrHead = ["GET", "HEAD"].includes(method);
+            const request = new Request(
+              `${protocol}://${host}${req.url}`,
+              isGetOrHead
+                ? { method, headers: req.headers as HeadersInit }
+                : { method, headers: req.headers as HeadersInit, body: bodyText }
+            );
 
-            const functionFile = url.endsWith("verify-order")
-              ? "./netlify/functions/verify-order.ts"
-              : "./netlify/functions/create-order.ts";
+            const fnName = url.replace("/.netlify/functions/", "");
+            const functionFile = `./netlify/functions/${fnName}.ts`;
             const mod = await server.ssrLoadModule(functionFile);
-            const handler = mod.default;
+            const handler = mod["default"];
 
             const response: Response = await handler(request);
 

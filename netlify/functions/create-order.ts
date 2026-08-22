@@ -223,6 +223,46 @@ export default async (request: Request) => {
       );
     }
 
+    // Persist initiated order into PostgreSQL database
+    try {
+      const crypto = await import("node:crypto");
+      const { sql } = await import("drizzle-orm");
+      const { getDb } = await import("../../src/db/index");
+      const { orders } = await import("../../src/db/schema");
+      const db = getDb();
+
+      const internalId = `ord_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+      const countRes = await db.select({ count: sql<number>`count(*)` }).from(orders);
+      const friendlyNumber = `SAF-2026-${String(Number(countRes[0]?.count || 0) + 1001).padStart(4, "0")}`;
+
+      await db.insert(orders).values({
+        id: internalId,
+        orderNumber: friendlyNumber,
+        cashfreeOrderId: data.order_id,
+        customerName: customer.name.trim(),
+        customerPhone: customer.phone.replace(/\D/g, ""),
+        customerEmail: customer.email ? customer.email.trim() : null,
+        shippingAddress: String(customer.address || ""),
+        city: String(customer.city || ""),
+        state: String(customer.state || ""),
+        pincode: String(customer.pincode || ""),
+        productName: "Raw Makhana",
+        packSize: packSize || "100g",
+        quantity: quantity || 1,
+        subtotal: String(Number(amount).toFixed(2)),
+        shippingAmount: "0.00",
+        discount: "0.00",
+        totalAmount: String(Number(amount).toFixed(2)),
+        paymentStatus: "PENDING",
+        orderStatus: "UNPAID",
+        shiprocketStatus: "PENDING_SHIPMENT",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    } catch (dbErr) {
+      console.error("[CREATE_ORDER] DB insert error:", dbErr);
+    }
+
     return new Response(
       JSON.stringify({
         order_id: data.order_id,
