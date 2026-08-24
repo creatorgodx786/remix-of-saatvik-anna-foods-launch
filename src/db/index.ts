@@ -16,6 +16,8 @@ export function getDb() {
   } catch {
     const netlifyEnv = (globalThis as any).Netlify?.env;
     connectionString =
+      (typeof netlifyEnv?.get === "function" && netlifyEnv.get("NETLIFY_DB_URL")) ||
+      process.env["NETLIFY_DB_URL"] ||
       (typeof netlifyEnv?.get === "function" && netlifyEnv.get("NETLIFY_DATABASE_URL")) ||
       process.env["NETLIFY_DATABASE_URL"] ||
       (typeof netlifyEnv?.get === "function" && netlifyEnv.get("DATABASE_URL")) ||
