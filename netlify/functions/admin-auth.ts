@@ -9,6 +9,7 @@ import {
   destroyAdminSession,
   requireAdminAuth,
   parseCookies,
+  bootstrapAdminIfEmpty,
 } from "../../src/lib/auth";
 
 export default async (request: Request) => {
@@ -47,6 +48,9 @@ export default async (request: Request) => {
   // 2. Admin Login
   if (request.method === "POST" && action === "login") {
     try {
+      // Ensure initial owner is bootstrapped if database is uninitialized
+      await bootstrapAdminIfEmpty();
+
       const body = await request.json().catch(() => ({}));
       const email = String(body.email || "").trim().toLowerCase();
       const password = String(body.password || "");
