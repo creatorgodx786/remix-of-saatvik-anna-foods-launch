@@ -41,13 +41,14 @@ export default async (request: Request) => {
 
   try {
     const candidatePayloads = [
-      // Schema 1: orderAmount (289) + packages
+      // Schema 1: package with price & value
       {
-        name: "orderAmount (289)",
+        name: "package with price, value & orderValue",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
           paymentMode: "prepaid",
+          orderValue: 289,
           orderAmount: 289,
           packages: [
             {
@@ -55,45 +56,20 @@ export default async (request: Request) => {
               length: 12,
               width: 5,
               height: 25,
+              price: 289,
+              value: 289,
+              orderValue: 289,
+              amount: 289,
+              qty: 1,
             },
           ],
         },
       },
-      // Schema 2: order_amount (289) + packages
+      // Schema 2: GET /v2/couriers list to see what other endpoints exist
       {
-        name: "order_amount (289)",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          order_amount: 289,
-          packages: [
-            {
-              weight: 0.21,
-              length: 12,
-              width: 5,
-              height: 25,
-            },
-          ],
-        },
-      },
-      // Schema 3: amount (289) + packages
-      {
-        name: "amount (289)",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          amount: 289,
-          packages: [
-            {
-              weight: 0.21,
-              length: 12,
-              width: 5,
-              height: 25,
-            },
-          ],
-        },
+        name: "GET /v2/couriers fallback probe",
+        isGet: true,
+        url: "https://api-v2.nimbuspost.com/v2/couriers",
       },
     ];
 
@@ -103,10 +79,10 @@ export default async (request: Request) => {
     let matchedPayload: any = null;
 
     for (const c of candidatePayloads) {
-      const res = await fetch(NIMBUS_V2_SERVICEABILITY_URL, {
-        method: "POST",
+      const res = await fetch(c.url || NIMBUS_V2_SERVICEABILITY_URL, {
+        method: c.isGet ? "GET" : "POST",
         headers: commonHeaders,
-        body: JSON.stringify(c.payload),
+        body: c.isGet ? undefined : JSON.stringify(c.payload),
       });
 
       const body = (await res.json().catch(() => ({}))) as any;
@@ -119,7 +95,7 @@ export default async (request: Request) => {
         response: body,
       });
 
-      if (isSuccess) {
+      if (isSuccess && !c.isGet) {
         successfulResponse = body;
         successfulSchemaName = c.name;
         matchedPayload = c.payload;
@@ -145,7 +121,6 @@ export default async (request: Request) => {
           httpStatus: 200,
           isServiceable: rawList.length > 0,
           matchedSchema: successfulSchemaName,
-          matchedPayload,
           testParcel: {
             pickupPincode: 221311,
             destinationPincode: 221011,
