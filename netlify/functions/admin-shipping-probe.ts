@@ -39,78 +39,137 @@ export default async (request: Request) => {
   };
 
   try {
-    const keysToTest = [
-      "order_value",
-      "orderValue",
-      "order_amount",
-      "orderAmount",
-      "order_total",
-      "orderTotal",
-      "total_amount",
-      "totalAmount",
-      "invoice_value",
-      "invoiceValue",
-      "declared_value",
-      "declaredValue",
-      "package_value",
-      "packageValue",
-      "shipment_value",
-      "shipmentValue",
-      "product_value",
-      "productValue",
-      "collectable_value",
-      "collectableValue",
-      "goods_value",
-      "goodsValue",
-    ];
-
-    const endpointsToTest = [
-      "https://api-v2.nimbuspost.com/v2/serviceability",
-      "https://api-v2.nimbuspost.com/v2/couriers/serviceability",
-      "https://api-v2.nimbuspost.com/v2/rates",
-      "https://api-v2.nimbuspost.com/v2/rate-calculator",
+    const tests = [
+      // 1. Literal "Order Value" with space
+      {
+        name: "Literal 'Order Value' with space",
+        url: "https://api-v2.nimbuspost.com/v2/serviceability",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          "Order Value": 289,
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
+      // 2. Literal "order value" lowercase with space
+      {
+        name: "Literal 'order value' with space",
+        url: "https://api-v2.nimbuspost.com/v2/serviceability",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          "order value": 289,
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
+      // 3. order_price
+      {
+        name: "order_price",
+        url: "https://api-v2.nimbuspost.com/v2/serviceability",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          order_price: 289,
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
+      // 4. item_value inside package
+      {
+        name: "item_value inside package",
+        url: "https://api-v2.nimbuspost.com/v2/serviceability",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25, item_value: 289, itemValue: 289, price: 289 }],
+        },
+      },
+      // 5. Query param orderValue=289
+      {
+        name: "Query param orderValue=289",
+        url: "https://api-v2.nimbuspost.com/v2/serviceability?orderValue=289&order_value=289&orderAmount=289",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
+      // 6. POST /v2/couriers/serviceability
+      {
+        name: "POST /v2/couriers/serviceability",
+        url: "https://api-v2.nimbuspost.com/v2/couriers/serviceability",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          orderAmount: 289,
+          orderValue: 289,
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
+      // 7. items array inside package
+      {
+        name: "items array inside package",
+        url: "https://api-v2.nimbuspost.com/v2/serviceability",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          packages: [
+            {
+              weight: 0.21,
+              length: 12,
+              width: 5,
+              height: 25,
+              items: [{ name: "Raw Makhana", price: 289, quantity: 1, value: 289 }],
+            },
+          ],
+        },
+      },
+      // 8. items array at root
+      {
+        name: "items array at root",
+        url: "https://api-v2.nimbuspost.com/v2/serviceability",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          items: [{ name: "Raw Makhana", price: 289, quantity: 1, value: 289 }],
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
     ];
 
     const attempts: any[] = [];
     let successfulResponse: any = null;
     let successfulSchemaName = "";
 
-    // Test each key with /v2/serviceability
-    for (const key of keysToTest) {
-      const payload: any = {
-        pickupPincode: 221311,
-        deliveryPincode: 221011,
-        paymentMode: "prepaid",
-        packages: [
-          {
-            weight: 0.21,
-            length: 12,
-            width: 5,
-            height: 25,
-          },
-        ],
-      };
-      payload[key] = 289;
-
-      const res = await fetch("https://api-v2.nimbuspost.com/v2/serviceability", {
+    for (const t of tests) {
+      const res = await fetch(t.url, {
         method: "POST",
         headers: commonHeaders,
-        body: JSON.stringify(payload),
+        body: JSON.stringify(t.payload),
       });
 
       const body = (await res.json().catch(() => ({}))) as any;
       const isSuccess = res.ok && (body.success === true || body.status === true || Array.isArray(body.data) || Array.isArray(body));
 
       attempts.push({
-        key,
+        test: t.name,
+        url: t.url,
         httpStatus: res.status,
         success: isSuccess,
         detail: body.error?.detail || body.message || (isSuccess ? "SUCCESS" : JSON.stringify(body)),
+        rawBody: isSuccess ? body : undefined,
       });
 
       if (isSuccess) {
         successfulResponse = body;
-        successfulSchemaName = `Key: ${key}`;
+        successfulSchemaName = t.name;
         break;
       }
     }
@@ -155,7 +214,7 @@ export default async (request: Request) => {
     return new Response(
       JSON.stringify({
         success: false,
-        message: "NimbusPost v2 key sweep results.",
+        message: "NimbusPost v2 serviceability sweep results.",
         attempts,
       }),
       {
