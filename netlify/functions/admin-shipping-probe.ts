@@ -22,164 +22,153 @@ export default async (request: Request) => {
 
   try {
     // -------------------------------------------------------------
-    // ACTION: RUN ADDITIVE MIGRATION
+    // ACTION: CORRECT ORDER STATUS FOR SAF-2026-1001
     // -------------------------------------------------------------
-    if (action === "apply-migration") {
-      // 1. Provider-Neutral Shipping Fields
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "shipping_provider" text;`);
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "shipping_order_id" text;`);
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "shipping_shipment_id" text;`);
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "shipping_awb" text;`);
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "shipping_courier" text;`);
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "shipping_status" text DEFAULT 'PENDING_SHIPMENT';`);
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "shipping_label_url" text;`);
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "shipping_manifest_url" text;`);
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "shipping_invoice_url" text;`);
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "tracking_url" text;`);
-
-      // 2. Actual Packed Parcel Specifications
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "parcel_weight" numeric(10, 2);`);
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "parcel_length" numeric(10, 2);`);
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "parcel_breadth" numeric(10, 2);`);
-      await db.execute(sql`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "parcel_height" numeric(10, 2);`);
-
-      // 3. Webhook Deduplication Table
-      await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS "webhook_events" (
-          "id" text PRIMARY KEY NOT NULL,
-          "provider" text NOT NULL,
-          "event_type" text NOT NULL,
-          "payload_hash" text NOT NULL,
-          "processed_at" timestamp with time zone DEFAULT now() NOT NULL
-        );
+    if (action === "correct-order-status") {
+      // 1. Pre-update verification: Count matching rows
+      const preCheckRes = await db.execute(sql`
+        SELECT 
+          id,
+          order_number,
+          cashfree_order_id,
+          cashfree_payment_id,
+          customer_name,
+          total_amount,
+          payment_status,
+          order_status,
+          shipping_status,
+          shipping_awb,
+          payment_method,
+          bank_reference
+        FROM orders
+        WHERE order_number = 'SAF-2026-1001'
+          AND payment_status = 'SUCCESS'
+          AND shipping_status = 'PENDING_SHIPMENT'
+          AND (shipping_awb IS NULL OR shipping_awb = '');
       `);
 
-      // 4. Indexes for Rapid Status & Webhook Queries
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_orders_shipping_awb" ON "orders" ("shipping_awb");`);
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_orders_shipping_status" ON "orders" ("shipping_status");`);
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_orders_shipping_provider" ON "orders" ("shipping_provider");`);
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_webhook_events_provider" ON "webhook_events" ("provider");`);
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_webhook_events_processed_at" ON "webhook_events" ("processed_at" DESC);`);
+      const preCheckRows = Array.isArray(preCheckRes) ? preCheckRes : (preCheckRes as any).rows || [];
+      const matchCount = preCheckRows.length;
+
+      if (matchCount !== 1) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `PRE_CHECK_FAILED: Expected exactly 1 matching row, found ${matchCount}. Update aborted.`,
+            matchingRows: preCheckRows,
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const beforeState = preCheckRows[0];
+
+      // 2. Perform targeted single-row update
+      const updateRes = await db.execute(sql`
+        UPDATE orders
+        SET order_status = 'PAID',
+            updated_at = NOW()
+        WHERE order_number = 'SAF-2026-1001'
+          AND payment_status = 'SUCCESS'
+          AND shipping_status = 'PENDING_SHIPMENT'
+          AND (shipping_awb IS NULL OR shipping_awb = '');
+      `);
+
+      // 3. Post-update verification: Read full record
+      const postCheckRes = await db.execute(sql`
+        SELECT 
+          id,
+          order_number,
+          cashfree_order_id,
+          cashfree_payment_id,
+          customer_name,
+          total_amount,
+          payment_status,
+          order_status,
+          shipping_status,
+          shipping_awb,
+          shipping_courier,
+          payment_method,
+          bank_reference,
+          created_at,
+          updated_at
+        FROM orders
+        WHERE order_number = 'SAF-2026-1001'
+        LIMIT 1;
+      `);
+
+      const postCheckRows = Array.isArray(postCheckRes) ? postCheckRes : (postCheckRes as any).rows || [];
+      const afterState = postCheckRows[0] || null;
+
+      const isVerified =
+        afterState &&
+        afterState.payment_status === "SUCCESS" &&
+        afterState.order_status === "PAID" &&
+        afterState.shipping_status === "PENDING_SHIPMENT" &&
+        (afterState.shipping_awb === null || afterState.shipping_awb === "") &&
+        afterState.cashfree_order_id === beforeState.cashfree_order_id &&
+        afterState.cashfree_payment_id === beforeState.cashfree_payment_id &&
+        afterState.bank_reference === beforeState.bank_reference &&
+        afterState.payment_method === beforeState.payment_method &&
+        Number(afterState.total_amount) === 289.0;
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          actionExecuted: action,
+          deployTimestamp: DEPLOY_TIMESTAMP,
+          rowsMatched: matchCount,
+          rowsUpdated: 1,
+          beforeState: {
+            orderNumber: beforeState.order_number,
+            paymentStatus: beforeState.payment_status,
+            orderStatus: beforeState.order_status,
+            shippingStatus: beforeState.shipping_status,
+            shippingAwb: beforeState.shipping_awb,
+            cashfreeOrderId: beforeState.cashfree_order_id,
+            cashfreePaymentId: beforeState.cashfree_payment_id,
+            totalAmount: beforeState.total_amount,
+          },
+          afterState: {
+            orderNumber: afterState.order_number,
+            paymentStatus: afterState.payment_status,
+            orderStatus: afterState.order_status,
+            shippingStatus: afterState.shipping_status,
+            shippingAwb: afterState.shipping_awb,
+            cashfreeOrderId: afterState.cashfree_order_id,
+            cashfreePaymentId: afterState.cashfree_payment_id,
+            bankReference: afterState.bank_reference,
+            paymentMethod: afterState.payment_method,
+            totalAmount: afterState.total_amount,
+            updatedAt: afterState.updated_at,
+          },
+          allVerificationChecksPassed: isVerified,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
-    // -------------------------------------------------------------
-    // POST-MIGRATION READ-ONLY VERIFICATION
-    // -------------------------------------------------------------
-    // A. Verify Columns in 'orders' table
-    const columnsRes = await db.execute(sql`
+    // Default inspect
+    const inspectRes = await db.execute(sql`
       SELECT 
-        column_name, 
-        data_type, 
-        is_nullable, 
-        column_default
-      FROM information_schema.columns 
-      WHERE table_schema = 'public' AND table_name = 'orders'
-      ORDER BY ordinal_position;
-    `);
-
-    const ordersColumns = Array.isArray(columnsRes) ? columnsRes : (columnsRes as any).rows || [];
-    const columnNamesList = ordersColumns.map((c: any) => String(c.column_name || "").toLowerCase());
-
-    const targetColumns = [
-      "shipping_provider",
-      "shipping_order_id",
-      "shipping_shipment_id",
-      "shipping_awb",
-      "shipping_courier",
-      "shipping_status",
-      "shipping_label_url",
-      "shipping_manifest_url",
-      "shipping_invoice_url",
-      "tracking_url",
-      "parcel_weight",
-      "parcel_length",
-      "parcel_breadth",
-      "parcel_height",
-    ];
-
-    const columnStatusMap: Record<string, boolean> = {};
-    for (const col of targetColumns) {
-      columnStatusMap[col] = columnNamesList.includes(col);
-    }
-
-    const allTargetColumnsPresent = targetColumns.every((col) => columnStatusMap[col]);
-
-    // B. Verify 'webhook_events' Table
-    const tableRes = await db.execute(sql`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' AND table_name = 'webhook_events';
-    `);
-
-    const webhookTableRows = Array.isArray(tableRes) ? tableRes : (tableRes as any).rows || [];
-    const hasWebhookEventsTable = webhookTableRows.length > 0;
-
-    // C. Verify Order SAF-2026-1001 Data Integrity
-    const orderRes = await db.execute(sql`
-      SELECT 
-        id,
-        order_number,
-        cashfree_order_id,
-        cashfree_payment_id,
-        customer_name,
-        customer_phone,
-        total_amount,
-        payment_status,
-        order_status,
-        shipping_provider,
-        shipping_order_id,
-        shipping_shipment_id,
-        shipping_awb,
-        shipping_courier,
-        shipping_status,
-        parcel_weight,
-        parcel_length,
-        parcel_breadth,
-        parcel_height,
-        payment_method,
-        bank_reference,
-        created_at,
-        updated_at
-      FROM orders 
+        order_number, payment_status, order_status, shipping_status, shipping_awb, total_amount
+      FROM orders
       WHERE order_number = 'SAF-2026-1001'
       LIMIT 1;
     `);
 
-    const orderRows = Array.isArray(orderRes) ? orderRes : (orderRes as any).rows || [];
-    const safOrder = orderRows[0] || null;
+    const inspectRows = Array.isArray(inspectRes) ? inspectRes : (inspectRes as any).rows || [];
 
     return new Response(
       JSON.stringify({
         success: true,
-        actionExecuted: action,
-        deployTimestamp: DEPLOY_TIMESTAMP,
-        migrationStatus: {
-          isApplied: allTargetColumnsPresent && hasWebhookEventsTable,
-          all14ColumnsPresent: allTargetColumnsPresent,
-          hasWebhookEventsTable,
-          columnsChecklist: columnStatusMap,
-        },
-        orderIntegrityCheck: safOrder
-          ? {
-              orderFound: true,
-              orderNumber: safOrder.order_number,
-              customerName: safOrder.customer_name,
-              totalAmount: safOrder.total_amount,
-              paymentStatus: safOrder.payment_status,
-              orderStatus: safOrder.order_status,
-              shippingAwb: safOrder.shipping_awb,
-              shippingStatus: safOrder.shipping_status,
-              cashfreeOrderId: safOrder.cashfree_order_id,
-              cashfreePaymentId: safOrder.cashfree_payment_id,
-              bankReference: safOrder.bank_reference,
-              paymentMethod: safOrder.payment_method,
-              createdAt: safOrder.created_at,
-              checksPass:
-                safOrder.payment_status === "SUCCESS" &&
-                safOrder.order_status === "PAID" &&
-                safOrder.shipping_awb === null,
-            }
-          : { orderFound: false },
+        order: inspectRows[0] || null,
       }),
       {
         status: 200,
@@ -190,7 +179,7 @@ export default async (request: Request) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: err?.message || "Migration execution error",
+        error: err?.message || "Execution exception",
       }),
       {
         status: 500,
