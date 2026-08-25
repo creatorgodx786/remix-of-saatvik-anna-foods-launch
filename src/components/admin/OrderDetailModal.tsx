@@ -100,19 +100,19 @@ export function OrderDetailModal({
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showDimensionOverride, setShowDimensionOverride] = useState(false);
 
-  // Default packaging specs
-  const [customWeight, setCustomWeight] = useState(order?.parcelWeight || "");
-  const [customLength, setCustomLength] = useState(order?.parcelLength || "");
-  const [customBreadth, setCustomBreadth] = useState(order?.parcelBreadth || "");
-  const [customHeight, setCustomHeight] = useState(order?.parcelHeight || "");
+  // Default packaging specs (editable)
+  const [customWeight, setCustomWeight] = useState(order?.parcelWeight || "205");
+  const [customLength, setCustomLength] = useState(order?.parcelLength || "12");
+  const [customBreadth, setCustomBreadth] = useState(order?.parcelBreadth || "5");
+  const [customHeight, setCustomHeight] = useState(order?.parcelHeight || "25");
 
   React.useEffect(() => {
     if (order) {
       setOrderStatus(getInitialFulfillmentStatus(order));
-      setCustomWeight(order.parcelWeight || "");
-      setCustomLength(order.parcelLength || "");
-      setCustomBreadth(order.parcelBreadth || "");
-      setCustomHeight(order.parcelHeight || "");
+      setCustomWeight(order.parcelWeight || "205");
+      setCustomLength(order.parcelLength || "12");
+      setCustomBreadth(order.parcelBreadth || "5");
+      setCustomHeight(order.parcelHeight || "25");
       setShippingError(null);
     }
   }, [order]);
@@ -162,7 +162,14 @@ export function OrderDetailModal({
       if (res.ok && data.success && data.order) {
         onOrderUpdated(data.order);
       } else {
-        setShippingError(data.message || data.error || "Shipment booking failed.");
+        const errorText =
+          (typeof data.message === "string" && data.message) ||
+          (typeof data.detail === "string" && data.detail) ||
+          (data.error && typeof data.error === "string" && data.error) ||
+          (data.error?.detail && typeof data.error.detail === "string" && data.error.detail) ||
+          (data.error?.message && typeof data.error.message === "string" && data.error.message) ||
+          "Shipment booking failed.";
+        setShippingError(errorText);
       }
     } catch (err: any) {
       setShippingError(err?.message || "Network error while creating shipment.");

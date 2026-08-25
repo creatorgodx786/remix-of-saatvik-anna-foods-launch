@@ -5,7 +5,8 @@ import { CONTACT, BRAND } from "../data/site";
 const NIMBUS_V2_BASE_URL = "https://api-v2.nimbuspost.com/v2";
 
 export interface NimbusShipmentResponse {
-  status: boolean;
+  status?: boolean;
+  success?: boolean;
   message?: string;
   data?: {
     order_id?: number | string;
@@ -13,11 +14,21 @@ export interface NimbusShipmentResponse {
     status?: string;
     [key: string]: any;
   };
+  error?: {
+    type?: string;
+    title?: string;
+    status?: number;
+    code?: string;
+    detail?: string;
+    message?: string;
+    [key: string]: any;
+  };
   errors?: any;
 }
 
 export interface NimbusAwbResponse {
-  status: boolean;
+  status?: boolean;
+  success?: boolean;
   message?: string;
   data?: {
     shipment_id?: number | string;
@@ -28,37 +39,51 @@ export interface NimbusAwbResponse {
     label?: string;
     [key: string]: any;
   };
+  error?: {
+    code?: string;
+    detail?: string;
+    message?: string;
+    [key: string]: any;
+  };
+  errors?: any;
 }
 
 export interface NimbusLabelResponse {
-  status: boolean;
+  status?: boolean;
+  success?: boolean;
   message?: string;
   data?: {
     label_url?: string;
     [key: string]: any;
   };
+  error?: any;
 }
 
 export interface NimbusManifestResponse {
-  status: boolean;
+  status?: boolean;
+  success?: boolean;
   message?: string;
   data?: {
     manifest_url?: string;
     [key: string]: any;
   };
+  error?: any;
 }
 
 export interface NimbusInvoiceResponse {
-  status: boolean;
+  status?: boolean;
+  success?: boolean;
   message?: string;
   data?: {
     invoice_url?: string;
     [key: string]: any;
   };
+  error?: any;
 }
 
 export interface NimbusTrackingResponse {
-  status: boolean;
+  status?: boolean;
+  success?: boolean;
   message?: string;
   data?: {
     awb?: string;
@@ -71,6 +96,25 @@ export interface NimbusTrackingResponse {
       status_code?: string;
     }>;
   };
+  error?: any;
+}
+
+/**
+ * Extracts the most useful, descriptive error message from a NimbusPost v2 response envelope.
+ */
+export function extractNimbusErrorMessage(res: any, defaultMsg = "NimbusPost API error"): string {
+  if (!res) return defaultMsg;
+  if (typeof res === "string") return res;
+  if (res.error?.detail && typeof res.error.detail === "string") return res.error.detail;
+  if (res.error?.message && typeof res.error.message === "string") return res.error.message;
+  if (res.message && typeof res.message === "string") return res.message;
+  if (res.detail && typeof res.detail === "string") return res.detail;
+  if (res.error && typeof res.error === "string") return res.error;
+  if (res.errors) {
+    if (typeof res.errors === "string") return res.errors;
+    return JSON.stringify(res.errors);
+  }
+  return defaultMsg;
 }
 
 /**
@@ -95,6 +139,24 @@ function getNimbusV2Credentials(): { apiKey: string; apiSecret: string } {
   }
 
   return { apiKey, apiSecret };
+}
+
+/**
+ * Retrieves sanitized warehouse ID from the environment.
+ */
+export function getNimbusWarehouseId(): string {
+  const netlifyEnv = (globalThis as any).Netlify?.env;
+  const warehouseId = (
+    (typeof netlifyEnv?.get === "function" && netlifyEnv.get("NIMBUSPOST_WAREHOUSE_ID")) ||
+    process.env["NIMBUSPOST_WAREHOUSE_ID"] ||
+    ""
+  ).trim().replace(/^["']|["']$/g, "");
+
+  if (!warehouseId) {
+    throw new Error("NIMBUSPOST_WAREHOUSE_ID is missing in environment.");
+  }
+
+  return warehouseId;
 }
 
 /**
@@ -123,7 +185,7 @@ async function nimbusV2Fetch<T>(path: string, options: RequestInit = {}): Promis
 /**
  * Retrieves the list of available couriers (v2).
  */
-export async function getNimbusCouriers(): Promise<{ status: boolean; data?: any; message?: string }> {
+export async function getNimbusCouriers(): Promise<{ status?: boolean; success?: boolean; data?: any; message?: string }> {
   return nimbusV2Fetch("/couriers", { method: "GET" });
 }
 
@@ -133,21 +195,39 @@ export async function getNimbusCouriers(): Promise<{ status: boolean; data?: any
 export async function checkNimbusServiceability(payload: {
   origin: string;
   destination: string;
-  payment_type: string;
-  order_amount: number;
+  payment_type?: string;
+  paymentMode?: string;
+  order_amount?: number;
+  orderAmount?: number;
   weight: number;
   length: number;
   breadth: number;
   height: number;
-}): Promise<{ status: boolean; data?: any; message?: string }> {
-  return nimbusV2Fetch("/courier/serviceability", {
+}): Promise<{ status?: boolean; success?: boolean; data?: any; message?: string; error?: any }> {
+  const weightKg = payload.weight > 10 ? Number((payload.weight / 1000).toFixed(2)) : Number(payload.weight.toFixed(2));
+  const v2Payload = {
+    pickupPincode: parseInt(payload.origin, 10),
+    deliveryPincode: parseInt(payload.destination, 10),
+    paymentMode: (payload.paymentMode || payload.payment_type || "prepaid").toLowerCase(),
+    orderAmount: Number(payload.orderAmount ?? payload.order_amount ?? 0),
+    packages: [
+      {
+        weight: weightKg,
+        length: payload.length,
+        width: payload.breadth,
+        height: payload.height,
+      },
+    ],
+  };
+
+  return nimbusV2Fetch("/serviceability", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify(v2Payload),
   });
 }
 
 /**
- * Creates a new order/shipment in NimbusPost v2.
+ * Creates a new order/shipment in NimbusPost v2 with confirmed packages array schema.
  */
 export async function createNimbusShipment(
   order: {
@@ -175,19 +255,27 @@ export async function createNimbusShipment(
     throw new Error("Invalid parcel specifications. Weight and box dimensions must be greater than zero.");
   }
 
-  const payload = {
+  const weightKg = Number((specs.weightGrams / 1000).toFixed(2));
+
+  const warehouseId = getNimbusWarehouseId();
+
+  const payload: Record<string, any> = {
     order_number: order.orderNumber,
+    order_type: "b2c",
     shipping_charges: Number(order.shippingAmount || 0),
     discount: Number(order.discount || 0),
     cod_charges: 0,
-    payment_type: "prepaid",
+    payment_mode: "prepaid",
     order_amount: Number(order.totalAmount),
-    package_weight: specs.weightGrams,
-    package_length: specs.lengthCm,
-    package_breadth: specs.breadthCm,
-    package_height: specs.heightCm,
-    request_auto_pickup: "no",
-    consignee: {
+    packages: [
+      {
+        weight: weightKg,
+        length: specs.lengthCm,
+        width: specs.breadthCm,
+        height: specs.heightCm,
+      },
+    ],
+    shipping_address: {
       name: order.customerName.trim(),
       address: order.shippingAddress.trim(),
       address_2: "",
@@ -197,16 +285,8 @@ export async function createNimbusShipment(
       phone: order.customerPhone.trim(),
       email: order.customerEmail ? order.customerEmail.trim() : "care@saatvikannafoods.in",
     },
-    pickup: {
-      warehouse_name: BRAND.name,
-      name: "Suraj Singh",
-      address: CONTACT.addressLines.join(" "),
-      city: "Varanasi",
-      state: "Uttar Pradesh",
-      pincode: "221311",
-      phone: CONTACT.phone,
-    },
-    order_items: [
+    warehouse_id: warehouseId,
+    items: [
       {
         name: `${order.productName} (${order.packSize})`,
         qty: Math.max(1, order.quantity || 1),
@@ -271,8 +351,8 @@ export async function getNimbusInvoice(awb: string): Promise<NimbusInvoiceRespon
 /**
  * Requests pickup for a booked shipment (v2).
  */
-export async function requestNimbusPickup(shipmentId: string | number): Promise<{ status: boolean; message?: string }> {
-  return nimbusV2Fetch<{ status: boolean; message?: string }>("/shipments/pickup", {
+export async function requestNimbusPickup(shipmentId: string | number): Promise<{ status?: boolean; success?: boolean; message?: string }> {
+  return nimbusV2Fetch<{ status?: boolean; success?: boolean; message?: string }>("/shipments/pickup", {
     method: "POST",
     body: JSON.stringify({ shipment_id: shipmentId }),
   });
