@@ -78,14 +78,16 @@ export default async (request: Request) => {
         body: ep.body ? JSON.stringify(ep.body) : undefined,
       });
 
-      const body = await res.json().catch(() => ({}));
+      const body = (await res.json().catch(() => ({}))) as any;
+
       attempts.push({
         method: ep.method,
         url: ep.url,
         httpStatus: res.status,
-        statusFlag: body.status,
-        message: body.message || res.statusText,
-        dataPreview: typeof body === "object" ? Object.keys(body) : String(body).slice(0, 50),
+        statusFlag: body.status || body.success,
+        message: body.message || body.error?.message || (typeof body.error === "string" ? body.error : JSON.stringify(body.error)) || res.statusText,
+        errorDetails: body.error,
+        meta: body.meta,
       });
 
       if (res.ok && (body.status === true || Array.isArray(body.data) || body.data?.couriers)) {
