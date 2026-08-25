@@ -41,32 +41,59 @@ export default async (request: Request) => {
 
   try {
     const candidatePayloads = [
-      // Schema 1: Grams (205) + paymentMode: "prepaid"
+      // Schema A: packages array with grams (205)
       {
-        name: "Grams (205) + paymentMode: prepaid",
+        name: "packages array (grams: 205)",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
-          weight: 205,
-          length: 12,
-          breadth: 5,
-          height: 25,
-          orderAmount: 289,
           paymentMode: "prepaid",
+          orderAmount: 289,
+          packages: [
+            {
+              weight: 205,
+              length: 12,
+              breadth: 5,
+              height: 25,
+            },
+          ],
         },
       },
-      // Schema 2: Kg (0.205) + paymentMode: "prepaid"
+      // Schema B: packages array with kg (0.205)
       {
-        name: "Kg (0.205) + paymentMode: prepaid",
+        name: "packages array (kg: 0.205)",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
-          weight: 0.205,
-          length: 12,
-          breadth: 5,
-          height: 25,
-          orderAmount: 289,
           paymentMode: "prepaid",
+          orderAmount: 289,
+          packages: [
+            {
+              weight: 0.205,
+              length: 12,
+              breadth: 5,
+              height: 25,
+            },
+          ],
+        },
+      },
+      // Schema C: packages array with quantity
+      {
+        name: "packages array with quantity",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          orderAmount: 289,
+          packages: [
+            {
+              weight: 205,
+              length: 12,
+              breadth: 5,
+              height: 25,
+              quantity: 1,
+            },
+          ],
         },
       },
     ];
@@ -84,7 +111,7 @@ export default async (request: Request) => {
       });
 
       const body = (await res.json().catch(() => ({}))) as any;
-      const isSuccess = res.ok && (body.status === true || body.success === true || Array.isArray(body.data) || Array.isArray(body.data?.couriers) || Array.isArray(body.data?.rates) || Array.isArray(body));
+      const isSuccess = res.ok && (body.success === true || body.status === true || Array.isArray(body.data) || Array.isArray(body));
 
       attempts.push({
         schema: c.name,
