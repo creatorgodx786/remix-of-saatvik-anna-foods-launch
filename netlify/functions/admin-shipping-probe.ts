@@ -1,7 +1,6 @@
 import { requireAdminAuth } from "../../src/lib/auth";
 import { getDb } from "../../src/db/index";
-import { orders } from "../../src/db/schema";
-import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 const DEPLOY_TIMESTAMP = new Date().toISOString();
 
@@ -19,42 +18,76 @@ export default async (request: Request) => {
 
   try {
     const db = getDb();
-    const orderRes = await db
-      .select()
-      .from(orders)
-      .where(eq(orders.orderNumber, "SAF-2026-1001"))
-      .limit(1);
 
-    const order = orderRes[0] || null;
+    // 1. Query all columns in the 'orders' table
+    const columnsRes = await db.execute(sql`
+      SELECT 
+        column_name, 
+        data_type, 
+        is_nullable, 
+        column_default
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' AND table_name = 'orders'
+      ORDER BY ordinal_position;
+    `);
+
+    const ordersColumns = Array.isArray(columnsRes) ? columnsRes : (columnsRes as any).rows || [];
+
+    // 2. Check if 'webhook_events' table exists
+    const tableRes = await db.execute(sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'webhook_events';
+    `);
+
+    const webhookTableRows = Array.isArray(tableRes) ? tableRes : (tableRes as any).rows || [];
+    const hasWebhookEventsTable = webhookTableRows.length > 0;
+
+    // 3. Check for specific fulfillment columns
+    const columnNamesList = ordersColumns.map((c: any) => String(c.column_name || "").toLowerCase());
+
+    const targetColumns = [
+      "shipping_provider",
+      "shipping_order_id",
+      "shipping_shipment_id",
+      "shipping_awb",
+      "shipping_courier",
+      "shipping_status",
+      "shipping_label_url",
+      "shipping_manifest_url",
+      "shipping_invoice_url",
+      "tracking_url",
+      "parcel_weight",
+      "parcel_length",
+      "parcel_breadth",
+      "parcel_height",
+    ];
+
+    const columnStatusMap: Record<string, boolean> = {};
+    for (const col of targetColumns) {
+      columnStatusMap[col] = columnNamesList.includes(col);
+    }
+
+    const allTargetColumnsPresent = targetColumns.every((col) => columnStatusMap[col]);
 
     return new Response(
       JSON.stringify({
         success: true,
         deployTimestamp: DEPLOY_TIMESTAMP,
-        orderData: order
-          ? {
-              id: order.id,
-              orderNumber: order.orderNumber,
-              customerName: order.customerName,
-              totalAmount: order.totalAmount,
-              paymentStatus: order.paymentStatus,
-              orderStatus: order.orderStatus,
-              shiprocketStatus: order.shiprocketStatus,
-              shiprocketAwb: order.shiprocketAwb,
-              shippingProvider: order.shippingProvider,
-              shippingOrderId: order.shippingOrderId,
-              shippingShipmentId: order.shippingShipmentId,
-              shippingAwb: order.shippingAwb,
-              shippingCourier: order.shippingCourier,
-              shippingStatus: order.shippingStatus,
-              parcelWeight: order.parcelWeight,
-              parcelLength: order.parcelLength,
-              parcelBreadth: order.parcelBreadth,
-              parcelHeight: order.parcelHeight,
-              createdAt: order.createdAt,
-              updatedAt: order.updatedAt,
-            }
-          : null,
+        schemaVerification: {
+          ordersTableFound: ordersColumns.length > 0,
+          totalColumnsInOrdersTable: ordersColumns.length,
+          allFulfillmentColumnsPresent: allTargetColumnsPresent,
+          hasWebhookEventsTable,
+          isMigrationApplied: allTargetColumnsPresent && hasWebhookEventsTable,
+          columnsChecklist: columnStatusMap,
+          allExistingOrdersColumns: ordersColumns.map((c: any) => ({
+            name: c.column_name,
+            type: c.data_type,
+            nullable: c.is_nullable,
+            default: c.column_default,
+          })),
+        },
       }),
       {
         status: 200,
@@ -65,7 +98,7 @@ export default async (request: Request) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: err?.message || "DB inspection error",
+        error: err?.message || "Schema inspection error",
       }),
       {
         status: 500,
