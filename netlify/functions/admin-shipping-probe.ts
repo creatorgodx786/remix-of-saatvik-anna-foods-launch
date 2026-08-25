@@ -40,21 +40,73 @@ export default async (request: Request) => {
   };
 
   try {
-    const candidateKeys = [
-      "order_amount",
-      "order_value",
-      "orderValue",
-      "declared_value",
-      "declaredValue",
-      "invoice_value",
-      "invoiceValue",
-      "total_amount",
-      "totalAmount",
-      "amount",
-      "price",
-      "value",
-      "collectable_amount",
-      "collectableAmount",
+    const candidatePayloads = [
+      // Variation 1: orderValue as string "289"
+      {
+        name: "orderValue as string",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          orderValue: "289",
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
+      // Variation 2: orderValue inside package object
+      {
+        name: "orderValue inside package",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25, orderValue: 289, value: 289, price: 289 }],
+        },
+      },
+      // Variation 3: "order_value" string
+      {
+        name: "order_value string",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          order_value: "289",
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
+      // Variation 4: "orderAmount" string
+      {
+        name: "orderAmount string",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          orderAmount: "289",
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
+      // Variation 5: order object
+      {
+        name: "nested order object",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          order: { value: 289, amount: 289 },
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
+      // Variation 6: collectableAmount / invoiceAmount
+      {
+        name: "collectableAmount / invoiceAmount",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          collectableAmount: 289,
+          invoiceAmount: 289,
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
     ];
 
     const attempts: any[] = [];
@@ -62,53 +114,29 @@ export default async (request: Request) => {
     let successfulSchemaName = "";
     let matchedPayload: any = null;
 
-    // Test a payload that includes multiple keys simultaneously to see which one clears "Order Value"
-    const multiKeyPayload = {
-      pickupPincode: 221311,
-      deliveryPincode: 221011,
-      paymentMode: "prepaid",
-      order_amount: 289,
-      order_value: 289,
-      orderValue: 289,
-      declared_value: 289,
-      declaredValue: 289,
-      invoice_value: 289,
-      invoiceValue: 289,
-      total_amount: 289,
-      totalAmount: 289,
-      amount: 289,
-      price: 289,
-      value: 289,
-      packages: [
-        {
-          weight: 0.21,
-          length: 12,
-          width: 5,
-          height: 25,
-        },
-      ],
-    };
+    for (const c of candidatePayloads) {
+      const res = await fetch(NIMBUS_V2_SERVICEABILITY_URL, {
+        method: "POST",
+        headers: commonHeaders,
+        body: JSON.stringify(c.payload),
+      });
 
-    const res = await fetch(NIMBUS_V2_SERVICEABILITY_URL, {
-      method: "POST",
-      headers: commonHeaders,
-      body: JSON.stringify(multiKeyPayload),
-    });
+      const body = (await res.json().catch(() => ({}))) as any;
+      const isSuccess = res.ok && (body.success === true || body.status === true || Array.isArray(body.data) || Array.isArray(body));
 
-    const body = (await res.json().catch(() => ({}))) as any;
-    const isSuccess = res.ok && (body.success === true || body.status === true || Array.isArray(body.data) || Array.isArray(body));
+      attempts.push({
+        schema: c.name,
+        httpStatus: res.status,
+        success: isSuccess,
+        response: body,
+      });
 
-    attempts.push({
-      schema: "Multi-key probe",
-      httpStatus: res.status,
-      success: isSuccess,
-      response: body,
-    });
-
-    if (isSuccess) {
-      successfulResponse = body;
-      successfulSchemaName = "Multi-key probe";
-      matchedPayload = multiKeyPayload;
+      if (isSuccess) {
+        successfulResponse = body;
+        successfulSchemaName = c.name;
+        matchedPayload = c.payload;
+        break;
+      }
     }
 
     if (successfulResponse) {
@@ -129,6 +157,7 @@ export default async (request: Request) => {
           httpStatus: 200,
           isServiceable: rawList.length > 0,
           matchedSchema: successfulSchemaName,
+          matchedPayload,
           testParcel: {
             pickupPincode: 221311,
             destinationPincode: 221011,
