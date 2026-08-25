@@ -41,70 +41,58 @@ export default async (request: Request) => {
 
   try {
     const candidatePayloads = [
-      // Variation 1: orderValue as string "289"
+      // Schema 1: orderAmount (289) + packages
       {
-        name: "orderValue as string",
+        name: "orderAmount (289)",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
           paymentMode: "prepaid",
-          orderValue: "289",
-          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+          orderAmount: 289,
+          packages: [
+            {
+              weight: 0.21,
+              length: 12,
+              width: 5,
+              height: 25,
+            },
+          ],
         },
       },
-      // Variation 2: orderValue inside package object
+      // Schema 2: order_amount (289) + packages
       {
-        name: "orderValue inside package",
+        name: "order_amount (289)",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
           paymentMode: "prepaid",
-          packages: [{ weight: 0.21, length: 12, width: 5, height: 25, orderValue: 289, value: 289, price: 289 }],
+          order_amount: 289,
+          packages: [
+            {
+              weight: 0.21,
+              length: 12,
+              width: 5,
+              height: 25,
+            },
+          ],
         },
       },
-      // Variation 3: "order_value" string
+      // Schema 3: amount (289) + packages
       {
-        name: "order_value string",
+        name: "amount (289)",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
           paymentMode: "prepaid",
-          order_value: "289",
-          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
-        },
-      },
-      // Variation 4: "orderAmount" string
-      {
-        name: "orderAmount string",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          orderAmount: "289",
-          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
-        },
-      },
-      // Variation 5: order object
-      {
-        name: "nested order object",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          order: { value: 289, amount: 289 },
-          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
-        },
-      },
-      // Variation 6: collectableAmount / invoiceAmount
-      {
-        name: "collectableAmount / invoiceAmount",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          collectableAmount: 289,
-          invoiceAmount: 289,
-          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+          amount: 289,
+          packages: [
+            {
+              weight: 0.21,
+              length: 12,
+              width: 5,
+              height: 25,
+            },
+          ],
         },
       },
     ];
