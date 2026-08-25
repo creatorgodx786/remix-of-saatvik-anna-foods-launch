@@ -35,16 +35,20 @@ export default async (request: Request) => {
 
   // 4. Retrieve Production Environment Credentials (Zero Exposure)
   const netlifyEnv = (globalThis as any).Netlify?.env;
-  const apiKey = (
+  let apiKey = (
     (typeof netlifyEnv?.get === "function" && netlifyEnv.get("NIMBUSPOST_API_KEY")) ||
     process.env["NIMBUSPOST_API_KEY"] ||
     ""
   ).trim();
-  const apiSecret = (
+  let apiSecret = (
     (typeof netlifyEnv?.get === "function" && netlifyEnv.get("NIMBUSPOST_API_SECRET")) ||
     process.env["NIMBUSPOST_API_SECRET"] ||
     ""
   ).trim();
+
+  // Clean any surrounding quotes if present
+  apiKey = apiKey.replace(/^["']|["']$/g, "");
+  apiSecret = apiSecret.replace(/^["']|["']$/g, "");
 
   if (!apiKey || !apiSecret) {
     return new Response(
@@ -74,53 +78,45 @@ export default async (request: Request) => {
     let token = "";
     let authMethodUsed = "";
 
-    // Method 1: Direct Header Auth if apiKey is already an API token / Bearer token
-    if (!apiKey.includes("@")) {
-      // Test direct Bearer Token
-      const directBearerRes = await fetch(`${NIMBUS_BASE_URL}/courier/serviceability`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(serviceabilityPayload),
-      });
-      const directBearerData = (await directBearerRes.json().catch(() => ({}))) as any;
-
-      if (directBearerRes.ok && directBearerData.status) {
-        token = apiKey;
-        authMethodUsed = "Direct Bearer Token";
-        return formatSuccessResponse(directBearerData, authMethodUsed, serviceabilityPayload);
-      }
-
-      // Test Direct API Key + Secret Headers
-      const directKeyRes = await fetch(`${NIMBUS_BASE_URL}/courier/serviceability`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "api-key": apiKey,
-          "api-secret": apiSecret,
-        },
-        body: JSON.stringify(serviceabilityPayload),
-      });
-      const directKeyData = (await directKeyRes.json().catch(() => ({}))) as any;
-
-      if (directKeyRes.ok && directKeyData.status) {
-        authMethodUsed = "Direct api-key / api-secret Headers";
-        return formatSuccessResponse(directKeyData, authMethodUsed, serviceabilityPayload);
-      }
+    // Test 1: Direct Bearer Token using apiSecret
+    const directSecretBearerRes = await fetch(`${NIMBUS_BASE_URL}/courier/serviceability`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${apiSecret}`,
+      },
+      body: JSON.stringify(serviceabilityPayload),
+    });
+    const directSecretData = (await directSecretBearerRes.json().catch(() => ({}))) as any;
+    if (directSecretBearerRes.ok && directSecretData.status) {
+      authMethodUsed = "Direct Bearer Token (NIMBUSPOST_API_SECRET)";
+      return formatSuccessResponse(directSecretData, authMethodUsed, serviceabilityPayload);
     }
 
-    // Method 2: Attempt Login Endpoint with Candidate Account Emails
-    const candidateEmails = [
-      apiKey.includes("@") ? apiKey : null,
-      "durgafunmail@gmail.com",
-      "owner@saatvikannafoods.in",
-    ].filter(Boolean) as string[];
+    // Test 2: Direct Bearer Token using apiKey (if token)
+    const directKeyBearerRes = await fetch(`${NIMBUS_BASE_URL}/courier/serviceability`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(serviceabilityPayload),
+    });
+    const directKeyData = (await directKeyBearerRes.json().catch(() => ({}))) as any;
+    if (directKeyBearerRes.ok && directKeyData.status) {
+      authMethodUsed = "Direct Bearer Token (NIMBUSPOST_API_KEY)";
+      return formatSuccessResponse(directKeyData, authMethodUsed, serviceabilityPayload);
+    }
+
+    // Test 3: POST /v1/users/login with email & password
+    const candidateEmails = [apiKey.toLowerCase(), "durgafunmail@gmail.com", "owner@saatvikannafoods.in"].filter(
+      (e) => e.includes("@")
+    );
 
     let lastLoginError = "";
+    let lastLoginStatus = 0;
 
     for (const email of candidateEmails) {
       const loginRes = await fetch(`${NIMBUS_BASE_URL}/users/login`, {
@@ -129,17 +125,18 @@ export default async (request: Request) => {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({ email, password: apiSecret }),
+        body: JSON.stringify({ email: email.trim(), password: apiSecret }),
       });
 
       const loginData = (await loginRes.json().catch(() => ({}))) as any;
+      lastLoginStatus = loginRes.status;
 
       if (loginRes.ok && loginData.status && loginData.data) {
         token = String(loginData.data).trim();
-        authMethodUsed = `POST /users/login (JWT Token exchanged for registered email)`;
+        authMethodUsed = `POST /users/login (exchanged JWT Bearer token)`;
         break;
       } else {
-        lastLoginError = loginData.message || JSON.stringify(loginData.errors || "Login failed");
+        lastLoginError = loginData.message || JSON.stringify(loginData.errors || "Invalid credentials");
       }
     }
 
@@ -148,9 +145,13 @@ export default async (request: Request) => {
         JSON.stringify({
           success: false,
           stage: "AUTHENTICATION",
-          apiKeyFormat: apiKey.includes("@") ? "email" : "alphanumeric_key",
-          message: `NimbusPost authentication unsuccessful. Response: ${lastLoginError}`,
-          hint: "If using API Key / Secret, ensure NIMBUSPOST_API_KEY contains the account login email (or a valid API Token).",
+          httpStatus: lastLoginStatus,
+          message: `NimbusPost authentication rejected by API: ${lastLoginError}`,
+          details: {
+            endpoint: "POST https://api.nimbuspost.com/v1/users/login",
+            emailTested: apiKey,
+            hasSecret: Boolean(apiSecret),
+          },
         }),
         {
           status: 502,
@@ -159,7 +160,7 @@ export default async (request: Request) => {
       );
     }
 
-    // Call serviceability with acquired JWT
+    // Call serviceability with acquired token
     const courierRes = await fetch(`${NIMBUS_BASE_URL}/courier/serviceability`, {
       method: "POST",
       headers: {
@@ -225,7 +226,7 @@ function formatSuccessResponse(courierData: any, authMethod: string, payload: an
       authentication: {
         status: true,
         method: authMethod,
-        message: "NimbusPost authentication verified",
+        message: "NimbusPost authentication verified successfully",
       },
       serviceability: {
         status: true,
