@@ -1,6 +1,5 @@
 import { requireAdminAuth } from "../../src/lib/auth";
 
-const NIMBUS_V2_SERVICEABILITY_URL = "https://api-v2.nimbuspost.com/v2/serviceability";
 const DEPLOY_TIMESTAMP = new Date().toISOString();
 
 export default async (request: Request) => {
@@ -40,89 +39,78 @@ export default async (request: Request) => {
   };
 
   try {
-    const candidatePayloads = [
-      // 1. No order value (minimal valid package)
-      {
-        name: "1. Minimal (No order value)",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
-        },
-      },
-      // 2. order_value (number 289)
-      {
-        name: "2. order_value (number 289)",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          order_value: 289,
-          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
-        },
-      },
-      // 3. order_amount (number 289)
-      {
-        name: "3. order_amount (number 289)",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          order_amount: 289,
-          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
-        },
-      },
-      // 4. orderValue (number 289)
-      {
-        name: "4. orderValue (number 289)",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          orderValue: 289,
-          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
-        },
-      },
-      // 5. declared_value (number 289)
-      {
-        name: "5. declared_value (number 289)",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          declared_value: 289,
-          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
-        },
-      },
+    const keysToTest = [
+      "order_value",
+      "orderValue",
+      "order_amount",
+      "orderAmount",
+      "order_total",
+      "orderTotal",
+      "total_amount",
+      "totalAmount",
+      "invoice_value",
+      "invoiceValue",
+      "declared_value",
+      "declaredValue",
+      "package_value",
+      "packageValue",
+      "shipment_value",
+      "shipmentValue",
+      "product_value",
+      "productValue",
+      "collectable_value",
+      "collectableValue",
+      "goods_value",
+      "goodsValue",
+    ];
+
+    const endpointsToTest = [
+      "https://api-v2.nimbuspost.com/v2/serviceability",
+      "https://api-v2.nimbuspost.com/v2/couriers/serviceability",
+      "https://api-v2.nimbuspost.com/v2/rates",
+      "https://api-v2.nimbuspost.com/v2/rate-calculator",
     ];
 
     const attempts: any[] = [];
     let successfulResponse: any = null;
     let successfulSchemaName = "";
-    let matchedPayload: any = null;
 
-    for (const c of candidatePayloads) {
-      const res = await fetch(NIMBUS_V2_SERVICEABILITY_URL, {
+    // Test each key with /v2/serviceability
+    for (const key of keysToTest) {
+      const payload: any = {
+        pickupPincode: 221311,
+        deliveryPincode: 221011,
+        paymentMode: "prepaid",
+        packages: [
+          {
+            weight: 0.21,
+            length: 12,
+            width: 5,
+            height: 25,
+          },
+        ],
+      };
+      payload[key] = 289;
+
+      const res = await fetch("https://api-v2.nimbuspost.com/v2/serviceability", {
         method: "POST",
         headers: commonHeaders,
-        body: JSON.stringify(c.payload),
+        body: JSON.stringify(payload),
       });
 
       const body = (await res.json().catch(() => ({}))) as any;
       const isSuccess = res.ok && (body.success === true || body.status === true || Array.isArray(body.data) || Array.isArray(body));
 
       attempts.push({
-        schema: c.name,
+        key,
         httpStatus: res.status,
         success: isSuccess,
-        response: body,
+        detail: body.error?.detail || body.message || (isSuccess ? "SUCCESS" : JSON.stringify(body)),
       });
 
       if (isSuccess) {
         successfulResponse = body;
-        successfulSchemaName = c.name;
-        matchedPayload = c.payload;
+        successfulSchemaName = `Key: ${key}`;
         break;
       }
     }
@@ -141,7 +129,6 @@ export default async (request: Request) => {
       return new Response(
         JSON.stringify({
           success: true,
-          endpoint: NIMBUS_V2_SERVICEABILITY_URL,
           httpStatus: 200,
           isServiceable: rawList.length > 0,
           matchedSchema: successfulSchemaName,
@@ -168,8 +155,7 @@ export default async (request: Request) => {
     return new Response(
       JSON.stringify({
         success: false,
-        endpoint: NIMBUS_V2_SERVICEABILITY_URL,
-        message: "NimbusPost v2 serviceability validation response received.",
+        message: "NimbusPost v2 key sweep results.",
         attempts,
       }),
       {
