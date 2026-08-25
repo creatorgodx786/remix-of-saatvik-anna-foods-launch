@@ -40,61 +40,21 @@ export default async (request: Request) => {
   };
 
   try {
-    const candidatePayloads = [
-      // Schema A: orderValue (numeric number 289)
-      {
-        name: "orderValue (289)",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          orderValue: 289,
-          packages: [
-            {
-              weight: 0.21,
-              length: 12,
-              width: 5,
-              height: 25,
-            },
-          ],
-        },
-      },
-      // Schema B: orderValue (float 289.0)
-      {
-        name: "orderValue (289.00 float)",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          orderValue: 289.0,
-          packages: [
-            {
-              weight: 0.21,
-              length: 12,
-              width: 5,
-              height: 25,
-            },
-          ],
-        },
-      },
-      // Schema C: order_value
-      {
-        name: "order_value (289)",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          order_value: 289,
-          packages: [
-            {
-              weight: 0.21,
-              length: 12,
-              width: 5,
-              height: 25,
-            },
-          ],
-        },
-      },
+    const candidateKeys = [
+      "order_amount",
+      "order_value",
+      "orderValue",
+      "declared_value",
+      "declaredValue",
+      "invoice_value",
+      "invoiceValue",
+      "total_amount",
+      "totalAmount",
+      "amount",
+      "price",
+      "value",
+      "collectable_amount",
+      "collectableAmount",
     ];
 
     const attempts: any[] = [];
@@ -102,29 +62,53 @@ export default async (request: Request) => {
     let successfulSchemaName = "";
     let matchedPayload: any = null;
 
-    for (const c of candidatePayloads) {
-      const res = await fetch(NIMBUS_V2_SERVICEABILITY_URL, {
-        method: "POST",
-        headers: commonHeaders,
-        body: JSON.stringify(c.payload),
-      });
+    // Test a payload that includes multiple keys simultaneously to see which one clears "Order Value"
+    const multiKeyPayload = {
+      pickupPincode: 221311,
+      deliveryPincode: 221011,
+      paymentMode: "prepaid",
+      order_amount: 289,
+      order_value: 289,
+      orderValue: 289,
+      declared_value: 289,
+      declaredValue: 289,
+      invoice_value: 289,
+      invoiceValue: 289,
+      total_amount: 289,
+      totalAmount: 289,
+      amount: 289,
+      price: 289,
+      value: 289,
+      packages: [
+        {
+          weight: 0.21,
+          length: 12,
+          width: 5,
+          height: 25,
+        },
+      ],
+    };
 
-      const body = (await res.json().catch(() => ({}))) as any;
-      const isSuccess = res.ok && (body.success === true || body.status === true || Array.isArray(body.data) || Array.isArray(body));
+    const res = await fetch(NIMBUS_V2_SERVICEABILITY_URL, {
+      method: "POST",
+      headers: commonHeaders,
+      body: JSON.stringify(multiKeyPayload),
+    });
 
-      attempts.push({
-        schema: c.name,
-        httpStatus: res.status,
-        success: isSuccess,
-        response: body,
-      });
+    const body = (await res.json().catch(() => ({}))) as any;
+    const isSuccess = res.ok && (body.success === true || body.status === true || Array.isArray(body.data) || Array.isArray(body));
 
-      if (isSuccess) {
-        successfulResponse = body;
-        successfulSchemaName = c.name;
-        matchedPayload = c.payload;
-        break;
-      }
+    attempts.push({
+      schema: "Multi-key probe",
+      httpStatus: res.status,
+      success: isSuccess,
+      response: body,
+    });
+
+    if (isSuccess) {
+      successfulResponse = body;
+      successfulSchemaName = "Multi-key probe";
+      matchedPayload = multiKeyPayload;
     }
 
     if (successfulResponse) {
@@ -145,15 +129,14 @@ export default async (request: Request) => {
           httpStatus: 200,
           isServiceable: rawList.length > 0,
           matchedSchema: successfulSchemaName,
-          matchedPayload,
           testParcel: {
             pickupPincode: 221311,
             destinationPincode: 221011,
             weightGrams: 205,
-            weightKg: matchedPayload?.packages?.[0]?.weight,
+            weightKg: 0.21,
             dimensionsCm: "12 x 5 x 25",
             paymentMode: "prepaid",
-            orderValue: 289,
+            orderAmount: 289,
           },
           couriersCount: rawList.length,
           couriers: rawList,
