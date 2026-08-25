@@ -78,6 +78,7 @@ export default async (request: Request) => {
     // Specs: 100g -> 0.1 kg, 20x15x10 cm, ₹289, Prepaid
     const shipmentPayload = {
       order_number: "SAF-2026-1001",
+      order_type: "b2c",
       shipping_charges: 0,
       discount: 0,
       cod_charges: 0,
