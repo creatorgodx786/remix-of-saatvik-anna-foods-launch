@@ -56,8 +56,28 @@ export const orders = pgTable("orders", {
   // Payment & Fulfillment State
   paymentStatus: text("payment_status").notNull().default("PENDING"),
   orderStatus: text("order_status").notNull().default("UNPAID"),
+  
+  // Legacy Shiprocket columns (kept intact for backward compatibility)
   shiprocketStatus: text("shiprocket_status").default("PENDING_SHIPMENT"),
   shiprocketAwb: text("shiprocket_awb"),
+
+  // Provider-Neutral Fulfillment State (NimbusPost / Multi-Carrier)
+  shippingProvider: text("shipping_provider"), // "nimbuspost"
+  shippingOrderId: text("shipping_order_id"),
+  shippingShipmentId: text("shipping_shipment_id"),
+  shippingAwb: text("shipping_awb"),
+  shippingCourier: text("shipping_courier"),
+  shippingStatus: text("shipping_status").notNull().default("PENDING_SHIPMENT"),
+  shippingLabelUrl: text("shipping_label_url"),
+  shippingManifestUrl: text("shipping_manifest_url"),
+  shippingInvoiceUrl: text("shipping_invoice_url"),
+  trackingUrl: text("tracking_url"),
+
+  // Actual Packed Parcel Specifications
+  parcelWeight: numeric("parcel_weight", { precision: 10, scale: 2 }), // in grams
+  parcelLength: numeric("parcel_length", { precision: 10, scale: 2 }), // in cm
+  parcelBreadth: numeric("parcel_breadth", { precision: 10, scale: 2 }), // in cm
+  parcelHeight: numeric("parcel_height", { precision: 10, scale: 2 }), // in cm
 
   // Minimal Non-Sensitive Reconciliation Fields (Zero card/UPI credentials)
   paymentMethod: text("payment_method"),           // e.g. "upi", "card", "netbanking"
@@ -67,6 +87,17 @@ export const orders = pgTable("orders", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * 4. Webhook Events Table: Deduplication and replay protection for logistics/payment webhooks
+ */
+export const webhookEvents = pgTable("webhook_events", {
+  id: text("id").primaryKey(), // SHA-256 hash or unique event identifier
+  provider: text("provider").notNull(), // "nimbuspost" | "cashfree"
+  eventType: text("event_type").notNull(),
+  payloadHash: text("payload_hash").notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 

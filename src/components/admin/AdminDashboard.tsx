@@ -18,39 +18,8 @@ import {
   Filter,
 } from "lucide-react";
 import { BRAND } from "@/data/site";
-import { OrderDetailModal } from "./OrderDetailModal";
+import { OrderDetailModal, Order } from "./OrderDetailModal";
 import { AdminSettingsModal } from "./AdminSettingsModal";
-
-interface Order {
-  id: string;
-  orderNumber: string;
-  cashfreeOrderId: string;
-  cashfreePaymentId: string | null;
-  customerName: string;
-  customerPhone: string;
-  customerEmail: string | null;
-  shippingAddress: string;
-  city: string;
-  state: string;
-  pincode: string;
-  productName: string;
-  packSize: string;
-  quantity: number;
-  subtotal: string;
-  shippingAmount: string;
-  discount: string;
-  totalAmount: string;
-  paymentStatus: string;
-  orderStatus: string;
-  shiprocketStatus: string | null;
-  shiprocketAwb: string | null;
-  paymentMethod: string | null;
-  bankReference: string | null;
-  paymentCompletionTime: string | null;
-  paymentMessage: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
 
 interface Metrics {
   totalOrders: number;
@@ -429,6 +398,11 @@ export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap">
                         {getOrderBadge(order.orderStatus)}
+                        {order.shippingAwb && (
+                          <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+                            AWB: {order.shippingAwb}
+                          </p>
+                        )}
                       </td>
                       <td className="px-5 py-4 text-right">
                         <button
