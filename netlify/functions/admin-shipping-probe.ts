@@ -40,11 +40,10 @@ export default async (request: Request) => {
   };
 
   try {
-    // 3. Test exact payload structures against POST https://api-v2.nimbuspost.com/v2/serviceability
     const candidatePayloads = [
-      // Schema A: Numeric integer pincodes & grams
+      // Schema 1: Grams (205) + paymentMode: "prepaid"
       {
-        name: "Numeric Pincodes & Grams",
+        name: "Grams (205) + paymentMode: prepaid",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
@@ -53,13 +52,12 @@ export default async (request: Request) => {
           breadth: 5,
           height: 25,
           orderAmount: 289,
-          paymentType: "prepaid",
-          isCod: false,
+          paymentMode: "prepaid",
         },
       },
-      // Schema B: Numeric integer pincodes & kg
+      // Schema 2: Kg (0.205) + paymentMode: "prepaid"
       {
-        name: "Numeric Pincodes & Kg",
+        name: "Kg (0.205) + paymentMode: prepaid",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
@@ -68,50 +66,7 @@ export default async (request: Request) => {
           breadth: 5,
           height: 25,
           orderAmount: 289,
-          paymentType: "prepaid",
-          isCod: false,
-        },
-      },
-      // Schema C: String pincodes & package dimensions prefixed
-      {
-        name: "Package prefixed fields",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          packageWeight: 205,
-          packageLength: 12,
-          packageBreadth: 5,
-          packageHeight: 25,
-          orderAmount: 289,
-          paymentType: "prepaid",
-        },
-      },
-      // Schema D: String pincodes
-      {
-        name: "String Pincodes",
-        payload: {
-          pickupPincode: "221311",
-          deliveryPincode: "221011",
-          weight: 205,
-          length: 12,
-          breadth: 5,
-          height: 25,
-          orderAmount: 289,
-          paymentType: "prepaid",
-        },
-      },
-      // Schema E: origin / destination pincodes
-      {
-        name: "originPincode / destinationPincode",
-        payload: {
-          originPincode: 221311,
-          destinationPincode: 221011,
-          weight: 205,
-          length: 12,
-          breadth: 5,
-          height: 25,
-          orderAmount: 289,
-          paymentType: "prepaid",
+          paymentMode: "prepaid",
         },
       },
     ];
@@ -119,6 +74,7 @@ export default async (request: Request) => {
     const attempts: any[] = [];
     let successfulResponse: any = null;
     let successfulSchemaName = "";
+    let matchedPayload: any = null;
 
     for (const c of candidatePayloads) {
       const res = await fetch(NIMBUS_V2_SERVICEABILITY_URL, {
@@ -128,7 +84,7 @@ export default async (request: Request) => {
       });
 
       const body = (await res.json().catch(() => ({}))) as any;
-      const isSuccess = res.ok && (body.status === true || body.success === true || Array.isArray(body.data) || Array.isArray(body.data?.couriers) || Array.isArray(body.data?.rates));
+      const isSuccess = res.ok && (body.status === true || body.success === true || Array.isArray(body.data) || Array.isArray(body.data?.couriers) || Array.isArray(body.data?.rates) || Array.isArray(body));
 
       attempts.push({
         schema: c.name,
@@ -140,12 +96,15 @@ export default async (request: Request) => {
       if (isSuccess) {
         successfulResponse = body;
         successfulSchemaName = c.name;
+        matchedPayload = c.payload;
         break;
       }
     }
 
     if (successfulResponse) {
-      const rawList = Array.isArray(successfulResponse.data)
+      const rawList = Array.isArray(successfulResponse)
+        ? successfulResponse
+        : Array.isArray(successfulResponse.data)
         ? successfulResponse.data
         : Array.isArray(successfulResponse.data?.couriers)
         ? successfulResponse.data.couriers
@@ -153,37 +112,24 @@ export default async (request: Request) => {
         ? successfulResponse.data.rates
         : [];
 
-      const sanitizedCouriers = rawList.map((c: any) => ({
-        courierId: c.id || c.courier_id || c.courierId || c.code || "N/A",
-        courierName: c.name || c.courier_name || c.courierName || c.title || "Courier Partner",
-        totalCharges: Number(c.total_charges ?? c.totalCharges ?? c.freight_charges ?? c.freightCharges ?? c.rate ?? 0),
-        freightCharges: c.freight_charges !== undefined || c.freightCharges !== undefined ? Number(c.freight_charges ?? c.freightCharges) : undefined,
-        fuelSurcharge: c.fuel_surcharge !== undefined || c.fuelSurcharge !== undefined ? Number(c.fuel_surcharge ?? c.fuelSurcharge) : undefined,
-        codCharges: c.cod_charges !== undefined || c.codCharges !== undefined ? Number(c.cod_charges ?? c.codCharges) : undefined,
-        taxAmount: c.tax_amount || c.gst || c.taxAmount !== undefined ? Number(c.tax_amount ?? c.gst ?? c.taxAmount) : undefined,
-        chargeableWeight: c.chargeable_weight || c.charged_weight || c.chargeableWeight || "205g",
-        estimatedDeliveryDays: c.estimated_delivery_days || c.edd || c.estimatedDeliveryDays || "N/A",
-        estimatedDeliveryDate: c.delivery_date || c.expected_delivery_date || c.expectedDeliveryDate || "N/A",
-        isServiceable: true,
-      }));
-
       return new Response(
         JSON.stringify({
           success: true,
           endpoint: NIMBUS_V2_SERVICEABILITY_URL,
           httpStatus: 200,
-          isServiceable: sanitizedCouriers.length > 0,
+          isServiceable: rawList.length > 0,
           matchedSchema: successfulSchemaName,
+          matchedPayload,
           testParcel: {
-            pickupPincode: "221311",
-            destinationPincode: "221011",
+            pickupPincode: 221311,
+            destinationPincode: 221011,
             weightGrams: 205,
             dimensionsCm: "12 x 5 x 25",
-            paymentType: "prepaid",
+            paymentMode: "prepaid",
             orderAmount: 289,
           },
-          availableCouriersCount: sanitizedCouriers.length,
-          couriers: sanitizedCouriers,
+          couriersCount: rawList.length,
+          couriers: rawList,
           rawResponse: successfulResponse,
         }),
         {
