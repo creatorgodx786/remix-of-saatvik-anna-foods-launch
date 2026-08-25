@@ -4,7 +4,6 @@ const NIMBUS_V2_COURIERS_URL = "https://api-v2.nimbuspost.com/v2/couriers";
 
 export default async (request: Request) => {
   // 1. Enforce POST / GET check for probe
-  // Allow probe via POST with probe header or admin session
   const probeHeader = request.headers.get("x-probe-token");
   const isProbeValid = probeHeader && probeHeader === "saf_nimbus_probe_9f83a02b1c4e7d5";
 
@@ -43,40 +42,67 @@ export default async (request: Request) => {
   }
 
   try {
-    // 3. Execute GET https://api-v2.nimbuspost.com/v2/couriers with v2 headers
-    const couriersRes = await fetch(NIMBUS_V2_COURIERS_URL, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "x-api-key": apiKey,
-        "x-api-secret": apiSecret,
-      },
-    });
+    // Test Header Variations
+    const headerSets = [
+      { name: "x-api-key & x-api-secret", headers: { "x-api-key": apiKey, "x-api-secret": apiSecret } },
+      { name: "api-key & api-secret", headers: { "api-key": apiKey, "api-secret": apiSecret } },
+      { name: "api_key & api_secret", headers: { "api_key": apiKey, "api_secret": apiSecret } },
+      { name: "apikey & apisecret", headers: { "apikey": apiKey, "apisecret": apiSecret } },
+      { name: "Bearer apiKey", headers: { "Authorization": `Bearer ${apiKey}` } },
+      { name: "Bearer apiSecret", headers: { "Authorization": `Bearer ${apiSecret}` } },
+    ];
 
-    const couriersData = (await couriersRes.json().catch(() => ({}))) as any;
+    const results: any[] = [];
+    let successfulData: any = null;
+    let successfulHeaderName = "";
 
-    if (!couriersRes.ok || !couriersData.status) {
+    for (const h of headerSets) {
+      const res = await fetch(NIMBUS_V2_COURIERS_URL, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...h.headers,
+        },
+      });
+
+      const body = await res.json().catch(() => ({}));
+      results.push({
+        headerVariation: h.name,
+        httpStatus: res.status,
+        statusFlag: body.status,
+        message: body.message || res.statusText,
+      });
+
+      if (res.ok && (body.status === true || Array.isArray(body.data) || body.data?.couriers)) {
+        successfulData = body;
+        successfulHeaderName = h.name;
+        break;
+      }
+    }
+
+    if (!successfulData) {
       return new Response(
         JSON.stringify({
           success: false,
           endpoint: "GET https://api-v2.nimbuspost.com/v2/couriers",
-          httpStatus: couriersRes.status,
-          httpStatusText: couriersRes.statusText,
-          message: couriersData.message || JSON.stringify(couriersData.errors || "Failed to fetch couriers"),
+          message: "All header authentication variations returned 401 Unauthorized from NimbusPost v2.",
+          attempts: results,
+          keyPrefix: apiKey.slice(0, 5),
+          secretPrefix: apiSecret.slice(0, 5),
         }),
         {
-          status: couriersRes.status || 502,
+          status: 401,
           headers: { "Content-Type": "application/json" },
         }
       );
     }
 
     // 4. Sanitize and Structure Couriers Response (Zero Secrets)
-    const rawCouriers = Array.isArray(couriersData.data)
-      ? couriersData.data
-      : Array.isArray(couriersData.data?.couriers)
-      ? couriersData.data.couriers
+    const rawCouriers = Array.isArray(successfulData.data)
+      ? successfulData.data
+      : Array.isArray(successfulData.data?.couriers)
+      ? successfulData.data.couriers
       : [];
 
     const sanitizedCouriers = rawCouriers.map((c: any) => ({
@@ -91,10 +117,10 @@ export default async (request: Request) => {
       JSON.stringify({
         success: true,
         endpoint: "GET https://api-v2.nimbuspost.com/v2/couriers",
-        httpStatus: couriersRes.status,
+        httpStatus: 200,
         authentication: {
           status: true,
-          method: "v2 Header Authentication (x-api-key, x-api-secret)",
+          successfulHeader: successfulHeaderName,
           message: "Authentication successful",
         },
         couriersCount: sanitizedCouriers.length,
