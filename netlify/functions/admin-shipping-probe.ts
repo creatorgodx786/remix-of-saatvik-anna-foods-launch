@@ -29,11 +29,9 @@ export default async (request: Request) => {
     ""
   );
 
-  // Sanitize for request
   const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, "");
   const apiSecret = rawApiSecret.trim().replace(/^["']|["']$/g, "");
 
-  // Non-sensitive telemetry to verify Netlify environment propagation
   const envTelemetry = {
     deployTimestamp: DEPLOY_TIMESTAMP,
     isKeyConfigured: Boolean(apiKey),
@@ -43,16 +41,12 @@ export default async (request: Request) => {
       trimmedLength: apiKey.length,
       prefix: apiKey ? `${apiKey.slice(0, 6)}...` : "N/A",
       suffix: apiKey ? `...${apiKey.slice(-4)}` : "N/A",
-      hadLeadingTrailingWhitespace: rawApiKey.length !== rawApiKey.trim().length,
-      hadSurroundingQuotes: rawApiKey.startsWith('"') || rawApiKey.startsWith("'"),
     },
     secretTelemetry: {
       length: rawApiSecret.length,
       trimmedLength: apiSecret.length,
       prefix: apiSecret ? `${apiSecret.slice(0, 4)}...` : "N/A",
       suffix: apiSecret ? `...${apiSecret.slice(-4)}` : "N/A",
-      hadLeadingTrailingWhitespace: rawApiSecret.length !== rawApiSecret.trim().length,
-      hadSurroundingQuotes: rawApiSecret.startsWith('"') || rawApiSecret.startsWith("'"),
     },
   };
 
@@ -72,45 +66,75 @@ export default async (request: Request) => {
   }
 
   try {
-    // 3. Execute GET https://api-v2.nimbuspost.com/v2/couriers
-    const res = await fetch(NIMBUS_V2_COURIERS_URL, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "x-api-key": apiKey,
-        "x-api-secret": apiSecret,
-      },
-    });
+    // 3. Exhaustive Header Combinations Test against GET /v2/couriers
+    const basicAuth = Buffer.from(`${apiKey}:${apiSecret}`).toString("base64");
 
-    const body = (await res.json().catch(() => ({}))) as any;
+    const combinations = [
+      { name: "x-api-key + x-api-secret", headers: { "x-api-key": apiKey, "x-api-secret": apiSecret } },
+      { name: "x-api-key + x-secret-key", headers: { "x-api-key": apiKey, "x-secret-key": apiSecret } },
+      { name: "api-key + api-secret", headers: { "api-key": apiKey, "api-secret": apiSecret } },
+      { name: "api-key + secret-key", headers: { "api-key": apiKey, "secret-key": apiSecret } },
+      { name: "apikey + apisecret", headers: { "apikey": apiKey, "apisecret": apiSecret } },
+      { name: "x-api-key solo", headers: { "x-api-key": apiKey } },
+      { name: "api-key solo", headers: { "api-key": apiKey } },
+      { name: "Authorization: Bearer apiKey", headers: { "Authorization": `Bearer ${apiKey}` } },
+      { name: "Authorization: Basic (apiKey:apiSecret)", headers: { "Authorization": `Basic ${basicAuth}` } },
+      { name: "key + secret", headers: { "key": apiKey, "secret": apiSecret } },
+    ];
 
-    if (!res.ok || !body.status) {
+    const attempts: any[] = [];
+    let successfulData: any = null;
+    let successfulHeaderName = "";
+
+    for (const combo of combinations) {
+      const res = await fetch(NIMBUS_V2_COURIERS_URL, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...combo.headers,
+        },
+      });
+
+      const body = await res.json().catch(() => ({}));
+      const isSuccess = res.ok && (body.status === true || Array.isArray(body.data) || body.data?.couriers || body.success === true);
+
+      attempts.push({
+        headerPattern: combo.name,
+        httpStatus: res.status,
+        statusFlag: body.status !== undefined ? body.status : body.success,
+        message: body.message || body.error?.detail || body.error?.message || res.statusText,
+        error: body.error,
+      });
+
+      if (isSuccess) {
+        successfulData = body;
+        successfulHeaderName = combo.name;
+        break;
+      }
+    }
+
+    if (!successfulData) {
       return new Response(
         JSON.stringify({
           success: false,
           endpoint: NIMBUS_V2_COURIERS_URL,
-          httpStatus: res.status,
-          httpStatusText: res.statusText,
-          apiResponse: {
-            status: body.status,
-            message: body.message,
-            error: body.error,
-            meta: body.meta,
-          },
+          message: "All authentication header patterns returned error from NimbusPost v2.",
           envTelemetry,
+          attempts,
         }),
         {
-          status: res.status || 502,
+          status: 401,
           headers: { "Content-Type": "application/json" },
         }
       );
     }
 
-    const rawCouriers = Array.isArray(body.data)
-      ? body.data
-      : Array.isArray(body.data?.couriers)
-      ? body.data.couriers
+    // 4. Sanitize and Structure Couriers Response
+    const rawCouriers = Array.isArray(successfulData.data)
+      ? successfulData.data
+      : Array.isArray(successfulData.data?.couriers)
+      ? successfulData.data.couriers
       : [];
 
     const sanitizedCouriers = rawCouriers.map((c: any) => ({
@@ -125,10 +149,10 @@ export default async (request: Request) => {
       JSON.stringify({
         success: true,
         endpoint: NIMBUS_V2_COURIERS_URL,
-        httpStatus: res.status,
+        httpStatus: 200,
         authentication: {
           status: true,
-          method: "x-api-key, x-api-secret headers",
+          authenticatedWithHeader: successfulHeaderName,
           message: "NimbusPost v2 authentication verified successfully",
         },
         envTelemetry,
