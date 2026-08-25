@@ -1,7 +1,5 @@
 import { requireAdminAuth } from "../../src/lib/auth";
 
-const NIMBUS_V2_COURIERS_URL = "https://api-v2.nimbuspost.com/v2/couriers";
-const NIMBUS_V2_SERVICEABILITY_URL = "https://api-v2.nimbuspost.com/v2/courier/serviceability";
 const DEPLOY_TIMESTAMP = new Date().toISOString();
 
 export default async (request: Request) => {
@@ -51,21 +49,6 @@ export default async (request: Request) => {
     },
   };
 
-  if (!apiKey || !apiSecret) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: "CONFIG_ERROR",
-        message: "NIMBUSPOST_API_KEY or NIMBUSPOST_API_SECRET is missing in Netlify environment.",
-        envTelemetry,
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  }
-
   const commonHeaders = {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -73,52 +56,65 @@ export default async (request: Request) => {
     "x-api-secret": apiSecret,
   };
 
+  const serviceabilityPayload = {
+    origin: "221311",
+    destination: "221011",
+    payment_type: "prepaid",
+    order_amount: 289.0,
+    weight: 205,
+    length: 12,
+    breadth: 5,
+    height: 25,
+  };
+
   try {
-    // 3. Execute GET /v2/couriers
-    const couriersRes = await fetch(NIMBUS_V2_COURIERS_URL, {
-      method: "GET",
-      headers: commonHeaders,
-    });
+    const candidateEndpoints = [
+      { method: "POST", url: "https://api-v2.nimbuspost.com/v2/couriers/serviceability", body: serviceabilityPayload },
+      { method: "POST", url: "https://api-v2.nimbuspost.com/v2/serviceability", body: serviceabilityPayload },
+      { method: "POST", url: "https://api-v2.nimbuspost.com/v2/couriers/rate", body: serviceabilityPayload },
+      { method: "POST", url: "https://api-v2.nimbuspost.com/v2/rate-calculator", body: serviceabilityPayload },
+      { method: "POST", url: "https://api-v2.nimbuspost.com/v2/shipping/rate", body: serviceabilityPayload },
+      { method: "POST", url: "https://api-v2.nimbuspost.com/v2/shipments/serviceability", body: serviceabilityPayload },
+      { method: "GET", url: "https://api-v2.nimbuspost.com/v2/couriers" },
+    ];
 
-    const couriersBody = (await couriersRes.json().catch(() => ({}))) as any;
+    const attempts: any[] = [];
+    let successfulData: any = null;
+    let successfulUrl = "";
 
-    // 4. Read Body & Parcel Dimensions for Serviceability / Rates
-    const body = await request.json().catch(() => ({}));
-    const weight = Number(body.weight || 205);
-    const length = Number(body.length || 12);
-    const breadth = Number(body.breadth || 5);
-    const height = Number(body.height || 25);
-    const orderAmount = Number(body.orderAmount || 289.0);
-    const origin = String(body.origin || "221311").trim();
-    const destination = String(body.destination || "221011").trim();
-    const paymentType = String(body.paymentType || "prepaid").trim().toLowerCase();
+    for (const ep of candidateEndpoints) {
+      const res = await fetch(ep.url, {
+        method: ep.method,
+        headers: commonHeaders,
+        body: ep.body ? JSON.stringify(ep.body) : undefined,
+      });
 
-    const serviceabilityPayload = {
-      origin,
-      destination,
-      payment_type: paymentType,
-      order_amount: orderAmount,
-      weight,
-      length,
-      breadth,
-      height,
-    };
+      const body = (await res.json().catch(() => ({}))) as any;
+      const isSuccess = res.ok && (body.status === true || Array.isArray(body.data) || body.data?.couriers || body.success === true);
 
-    // 5. Execute POST /v2/courier/serviceability (Read-Only)
-    const serviceRes = await fetch(NIMBUS_V2_SERVICEABILITY_URL, {
-      method: "POST",
-      headers: commonHeaders,
-      body: JSON.stringify(serviceabilityPayload),
-    });
+      attempts.push({
+        method: ep.method,
+        url: ep.url,
+        httpStatus: res.status,
+        statusFlag: body.status !== undefined ? body.status : body.success,
+        message: body.message || body.error?.detail || body.error?.message || res.statusText,
+        error: body.error,
+        dataLength: Array.isArray(body.data) ? body.data.length : undefined,
+      });
 
-    const serviceBody = (await serviceRes.json().catch(() => ({}))) as any;
+      if (isSuccess && (Array.isArray(body.data) || body.data?.couriers)) {
+        successfulData = body;
+        successfulUrl = ep.url;
+        break;
+      }
+    }
 
-    const rawCouriers = Array.isArray(serviceBody.data)
-      ? serviceBody.data
-      : Array.isArray(serviceBody.data?.couriers)
-      ? serviceBody.data.couriers
-      : Array.isArray(couriersBody.data)
-      ? couriersBody.data
+    const rawCouriers = successfulData
+      ? (Array.isArray(successfulData.data)
+          ? successfulData.data
+          : Array.isArray(successfulData.data?.couriers)
+          ? successfulData.data.couriers
+          : [])
       : [];
 
     const sanitizedCouriers = rawCouriers.map((c: any) => ({
@@ -129,17 +125,14 @@ export default async (request: Request) => {
       fuelSurcharge: c.fuel_surcharge !== undefined ? Number(c.fuel_surcharge) : undefined,
       codCharges: c.cod_charges !== undefined ? Number(c.cod_charges) : undefined,
       taxAmount: c.tax_amount || c.gst !== undefined ? Number(c.tax_amount || c.gst) : undefined,
-      chargeableWeight: c.chargeable_weight || c.charged_weight || `${weight}g`,
+      chargeableWeight: c.chargeable_weight || c.charged_weight || "205g",
       estimatedDeliveryDays: c.estimated_delivery_days || c.edd || "N/A",
-      estimatedDeliveryDate: c.delivery_date || c.expected_delivery_date || "N/A",
       isServiceable: true,
     }));
 
     return new Response(
       JSON.stringify({
         success: true,
-        endpoint: NIMBUS_V2_COURIERS_URL,
-        httpStatus: 200,
         authentication: {
           status: true,
           authenticatedWithHeader: "x-api-key + x-api-secret",
@@ -147,21 +140,21 @@ export default async (request: Request) => {
         },
         envTelemetry,
         serviceability: {
-          status: serviceRes.ok && serviceBody.status !== false,
-          pickupPincode: origin,
-          destinationPincode: destination,
-          paymentType,
-          orderAmount,
+          endpoint: successfulUrl || "Probed across v2 endpoints",
+          pickupPincode: "221311",
+          destinationPincode: "221011",
+          paymentType: "prepaid",
+          orderAmount: 289.0,
           parcelSpecs: {
-            weightGrams: weight,
-            lengthCm: length,
-            breadthCm: breadth,
-            heightCm: height,
+            weightGrams: 205,
+            lengthCm: 12,
+            breadthCm: 5,
+            heightCm: 25,
           },
           availableCouriersCount: sanitizedCouriers.length,
           couriers: sanitizedCouriers,
-          rawServiceabilityResponse: serviceBody,
         },
+        endpointAttempts: attempts,
       }),
       {
         status: 200,
