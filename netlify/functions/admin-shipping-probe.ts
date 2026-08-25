@@ -1,7 +1,6 @@
 import { requireAdminAuth } from "../../src/lib/auth";
-import { getDb } from "../../src/db/index";
-import { sql } from "drizzle-orm";
 
+const NIMBUS_V2_SERVICEABILITY_URL = "https://api-v2.nimbuspost.com/v2/serviceability";
 const DEPLOY_TIMESTAMP = new Date().toISOString();
 
 export default async (request: Request) => {
@@ -16,136 +15,176 @@ export default async (request: Request) => {
     }
   }
 
-  const url = new URL(request.url);
-  const action = url.searchParams.get("action") || "inspect";
-  const db = getDb();
+  // 2. Retrieve Environment Variables
+  const netlifyEnv = (globalThis as any).Netlify?.env;
+  const rawApiKey = (
+    (typeof netlifyEnv?.get === "function" && netlifyEnv.get("NIMBUSPOST_API_KEY")) ||
+    process.env["NIMBUSPOST_API_KEY"] ||
+    ""
+  );
+
+  const rawApiSecret = (
+    (typeof netlifyEnv?.get === "function" && netlifyEnv.get("NIMBUSPOST_API_SECRET")) ||
+    process.env["NIMBUSPOST_API_SECRET"] ||
+    ""
+  );
+
+  const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, "");
+  const apiSecret = rawApiSecret.trim().replace(/^["']|["']$/g, "");
+
+  const commonHeaders = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    "x-api-key": apiKey,
+    "x-api-secret": apiSecret,
+  };
 
   try {
-    // -------------------------------------------------------------
-    // ACTION: CORRECT ORDER STATUS FOR SAF-2026-1001
-    // -------------------------------------------------------------
-    if (action === "correct-order-status") {
-      // 1. Pre-update verification: Count matching rows
-      const preCheckRes = await db.execute(sql`
-        SELECT 
-          id,
-          order_number,
-          cashfree_order_id,
-          cashfree_payment_id,
-          customer_name,
-          total_amount,
-          payment_status,
-          order_status,
-          shipping_status,
-          shipping_awb,
-          payment_method,
-          bank_reference
-        FROM orders
-        WHERE order_number = 'SAF-2026-1001'
-          AND payment_status = 'SUCCESS'
-          AND shipping_status = 'PENDING_SHIPMENT'
-          AND (shipping_awb IS NULL OR shipping_awb = '');
-      `);
+    // 3. Test exact payload structures against POST https://api-v2.nimbuspost.com/v2/serviceability
+    const candidatePayloads = [
+      // Schema A: Numeric integer pincodes & grams
+      {
+        name: "Numeric Pincodes & Grams",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          weight: 205,
+          length: 12,
+          breadth: 5,
+          height: 25,
+          orderAmount: 289,
+          paymentType: "prepaid",
+          isCod: false,
+        },
+      },
+      // Schema B: Numeric integer pincodes & kg
+      {
+        name: "Numeric Pincodes & Kg",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          weight: 0.205,
+          length: 12,
+          breadth: 5,
+          height: 25,
+          orderAmount: 289,
+          paymentType: "prepaid",
+          isCod: false,
+        },
+      },
+      // Schema C: String pincodes & package dimensions prefixed
+      {
+        name: "Package prefixed fields",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          packageWeight: 205,
+          packageLength: 12,
+          packageBreadth: 5,
+          packageHeight: 25,
+          orderAmount: 289,
+          paymentType: "prepaid",
+        },
+      },
+      // Schema D: String pincodes
+      {
+        name: "String Pincodes",
+        payload: {
+          pickupPincode: "221311",
+          deliveryPincode: "221011",
+          weight: 205,
+          length: 12,
+          breadth: 5,
+          height: 25,
+          orderAmount: 289,
+          paymentType: "prepaid",
+        },
+      },
+      // Schema E: origin / destination pincodes
+      {
+        name: "originPincode / destinationPincode",
+        payload: {
+          originPincode: 221311,
+          destinationPincode: 221011,
+          weight: 205,
+          length: 12,
+          breadth: 5,
+          height: 25,
+          orderAmount: 289,
+          paymentType: "prepaid",
+        },
+      },
+    ];
 
-      const preCheckRows = Array.isArray(preCheckRes) ? preCheckRes : (preCheckRes as any).rows || [];
-      const matchCount = preCheckRows.length;
+    const attempts: any[] = [];
+    let successfulResponse: any = null;
+    let successfulSchemaName = "";
 
-      if (matchCount !== 1) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `PRE_CHECK_FAILED: Expected exactly 1 matching row, found ${matchCount}. Update aborted.`,
-            matchingRows: preCheckRows,
-          }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+    for (const c of candidatePayloads) {
+      const res = await fetch(NIMBUS_V2_SERVICEABILITY_URL, {
+        method: "POST",
+        headers: commonHeaders,
+        body: JSON.stringify(c.payload),
+      });
+
+      const body = (await res.json().catch(() => ({}))) as any;
+      const isSuccess = res.ok && (body.status === true || body.success === true || Array.isArray(body.data) || Array.isArray(body.data?.couriers) || Array.isArray(body.data?.rates));
+
+      attempts.push({
+        schema: c.name,
+        httpStatus: res.status,
+        success: isSuccess,
+        response: body,
+      });
+
+      if (isSuccess) {
+        successfulResponse = body;
+        successfulSchemaName = c.name;
+        break;
       }
+    }
 
-      const beforeState = preCheckRows[0];
+    if (successfulResponse) {
+      const rawList = Array.isArray(successfulResponse.data)
+        ? successfulResponse.data
+        : Array.isArray(successfulResponse.data?.couriers)
+        ? successfulResponse.data.couriers
+        : Array.isArray(successfulResponse.data?.rates)
+        ? successfulResponse.data.rates
+        : [];
 
-      // 2. Perform targeted single-row update
-      const updateRes = await db.execute(sql`
-        UPDATE orders
-        SET order_status = 'PAID',
-            updated_at = NOW()
-        WHERE order_number = 'SAF-2026-1001'
-          AND payment_status = 'SUCCESS'
-          AND shipping_status = 'PENDING_SHIPMENT'
-          AND (shipping_awb IS NULL OR shipping_awb = '');
-      `);
-
-      // 3. Post-update verification: Read full record
-      const postCheckRes = await db.execute(sql`
-        SELECT 
-          id,
-          order_number,
-          cashfree_order_id,
-          cashfree_payment_id,
-          customer_name,
-          total_amount,
-          payment_status,
-          order_status,
-          shipping_status,
-          shipping_awb,
-          shipping_courier,
-          payment_method,
-          bank_reference,
-          created_at,
-          updated_at
-        FROM orders
-        WHERE order_number = 'SAF-2026-1001'
-        LIMIT 1;
-      `);
-
-      const postCheckRows = Array.isArray(postCheckRes) ? postCheckRes : (postCheckRes as any).rows || [];
-      const afterState = postCheckRows[0] || null;
-
-      const isVerified =
-        afterState &&
-        afterState.payment_status === "SUCCESS" &&
-        afterState.order_status === "PAID" &&
-        afterState.shipping_status === "PENDING_SHIPMENT" &&
-        (afterState.shipping_awb === null || afterState.shipping_awb === "") &&
-        afterState.cashfree_order_id === beforeState.cashfree_order_id &&
-        afterState.cashfree_payment_id === beforeState.cashfree_payment_id &&
-        afterState.bank_reference === beforeState.bank_reference &&
-        afterState.payment_method === beforeState.payment_method &&
-        Number(afterState.total_amount) === 289.0;
+      const sanitizedCouriers = rawList.map((c: any) => ({
+        courierId: c.id || c.courier_id || c.courierId || c.code || "N/A",
+        courierName: c.name || c.courier_name || c.courierName || c.title || "Courier Partner",
+        totalCharges: Number(c.total_charges ?? c.totalCharges ?? c.freight_charges ?? c.freightCharges ?? c.rate ?? 0),
+        freightCharges: c.freight_charges !== undefined || c.freightCharges !== undefined ? Number(c.freight_charges ?? c.freightCharges) : undefined,
+        fuelSurcharge: c.fuel_surcharge !== undefined || c.fuelSurcharge !== undefined ? Number(c.fuel_surcharge ?? c.fuelSurcharge) : undefined,
+        codCharges: c.cod_charges !== undefined || c.codCharges !== undefined ? Number(c.cod_charges ?? c.codCharges) : undefined,
+        taxAmount: c.tax_amount || c.gst || c.taxAmount !== undefined ? Number(c.tax_amount ?? c.gst ?? c.taxAmount) : undefined,
+        chargeableWeight: c.chargeable_weight || c.charged_weight || c.chargeableWeight || "205g",
+        estimatedDeliveryDays: c.estimated_delivery_days || c.edd || c.estimatedDeliveryDays || "N/A",
+        estimatedDeliveryDate: c.delivery_date || c.expected_delivery_date || c.expectedDeliveryDate || "N/A",
+        isServiceable: true,
+      }));
 
       return new Response(
         JSON.stringify({
           success: true,
-          actionExecuted: action,
-          deployTimestamp: DEPLOY_TIMESTAMP,
-          rowsMatched: matchCount,
-          rowsUpdated: 1,
-          beforeState: {
-            orderNumber: beforeState.order_number,
-            paymentStatus: beforeState.payment_status,
-            orderStatus: beforeState.order_status,
-            shippingStatus: beforeState.shipping_status,
-            shippingAwb: beforeState.shipping_awb,
-            cashfreeOrderId: beforeState.cashfree_order_id,
-            cashfreePaymentId: beforeState.cashfree_payment_id,
-            totalAmount: beforeState.total_amount,
+          endpoint: NIMBUS_V2_SERVICEABILITY_URL,
+          httpStatus: 200,
+          isServiceable: sanitizedCouriers.length > 0,
+          matchedSchema: successfulSchemaName,
+          testParcel: {
+            pickupPincode: "221311",
+            destinationPincode: "221011",
+            weightGrams: 205,
+            dimensionsCm: "12 x 5 x 25",
+            paymentType: "prepaid",
+            orderAmount: 289,
           },
-          afterState: {
-            orderNumber: afterState.order_number,
-            paymentStatus: afterState.payment_status,
-            orderStatus: afterState.order_status,
-            shippingStatus: afterState.shipping_status,
-            shippingAwb: afterState.shipping_awb,
-            cashfreeOrderId: afterState.cashfree_order_id,
-            cashfreePaymentId: afterState.cashfree_payment_id,
-            bankReference: afterState.bank_reference,
-            paymentMethod: afterState.payment_method,
-            totalAmount: afterState.total_amount,
-            updatedAt: afterState.updated_at,
-          },
-          allVerificationChecksPassed: isVerified,
+          availableCouriersCount: sanitizedCouriers.length,
+          couriers: sanitizedCouriers,
+          rawResponse: successfulResponse,
         }),
         {
           status: 200,
@@ -154,24 +193,15 @@ export default async (request: Request) => {
       );
     }
 
-    // Default inspect
-    const inspectRes = await db.execute(sql`
-      SELECT 
-        order_number, payment_status, order_status, shipping_status, shipping_awb, total_amount
-      FROM orders
-      WHERE order_number = 'SAF-2026-1001'
-      LIMIT 1;
-    `);
-
-    const inspectRows = Array.isArray(inspectRes) ? inspectRes : (inspectRes as any).rows || [];
-
     return new Response(
       JSON.stringify({
-        success: true,
-        order: inspectRows[0] || null,
+        success: false,
+        endpoint: NIMBUS_V2_SERVICEABILITY_URL,
+        message: "NimbusPost v2 serviceability validation response received.",
+        attempts,
       }),
       {
-        status: 200,
+        status: 400,
         headers: { "Content-Type": "application/json" },
       }
     );
@@ -179,7 +209,7 @@ export default async (request: Request) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: err?.message || "Execution exception",
+        error: err?.message || "Serviceability execution exception",
       }),
       {
         status: 500,
