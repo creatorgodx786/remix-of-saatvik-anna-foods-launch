@@ -41,14 +41,14 @@ export default async (request: Request) => {
 
   try {
     const candidatePayloads = [
-      // Schema A: 0.21 kg (205g rounded to 2 decimal places), length: 12, width: 5, height: 25
+      // Schema A: orderValue (numeric number 289)
       {
-        name: "Weight 0.21 kg, L: 12, W: 5, H: 25",
+        name: "orderValue (289)",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
           paymentMode: "prepaid",
-          orderAmount: 289,
+          orderValue: 289,
           packages: [
             {
               weight: 0.21,
@@ -59,17 +59,35 @@ export default async (request: Request) => {
           ],
         },
       },
-      // Schema B: 0.20 kg
+      // Schema B: orderValue (float 289.0)
       {
-        name: "Weight 0.20 kg, L: 12, W: 5, H: 25",
+        name: "orderValue (289.00 float)",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
           paymentMode: "prepaid",
-          orderAmount: 289,
+          orderValue: 289.0,
           packages: [
             {
-              weight: 0.2,
+              weight: 0.21,
+              length: 12,
+              width: 5,
+              height: 25,
+            },
+          ],
+        },
+      },
+      // Schema C: order_value
+      {
+        name: "order_value (289)",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          order_value: 289,
+          packages: [
+            {
+              weight: 0.21,
               length: 12,
               width: 5,
               height: 25,
@@ -135,7 +153,7 @@ export default async (request: Request) => {
             weightKg: matchedPayload?.packages?.[0]?.weight,
             dimensionsCm: "12 x 5 x 25",
             paymentMode: "prepaid",
-            orderAmount: 289,
+            orderValue: 289,
           },
           couriersCount: rawList.length,
           couriers: rawList,
