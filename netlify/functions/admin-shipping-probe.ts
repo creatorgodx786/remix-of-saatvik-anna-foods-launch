@@ -41,35 +41,59 @@ export default async (request: Request) => {
 
   try {
     const candidatePayloads = [
-      // Schema 1: package with price & value
+      // 1. No order value (minimal valid package)
       {
-        name: "package with price, value & orderValue",
+        name: "1. Minimal (No order value)",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
+      // 2. order_value (number 289)
+      {
+        name: "2. order_value (number 289)",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          order_value: 289,
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
+      // 3. order_amount (number 289)
+      {
+        name: "3. order_amount (number 289)",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          order_amount: 289,
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
+      },
+      // 4. orderValue (number 289)
+      {
+        name: "4. orderValue (number 289)",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
           paymentMode: "prepaid",
           orderValue: 289,
-          orderAmount: 289,
-          packages: [
-            {
-              weight: 0.21,
-              length: 12,
-              width: 5,
-              height: 25,
-              price: 289,
-              value: 289,
-              orderValue: 289,
-              amount: 289,
-              qty: 1,
-            },
-          ],
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
         },
       },
-      // Schema 2: GET /v2/couriers list to see what other endpoints exist
+      // 5. declared_value (number 289)
       {
-        name: "GET /v2/couriers fallback probe",
-        isGet: true,
-        url: "https://api-v2.nimbuspost.com/v2/couriers",
+        name: "5. declared_value (number 289)",
+        payload: {
+          pickupPincode: 221311,
+          deliveryPincode: 221011,
+          paymentMode: "prepaid",
+          declared_value: 289,
+          packages: [{ weight: 0.21, length: 12, width: 5, height: 25 }],
+        },
       },
     ];
 
@@ -79,10 +103,10 @@ export default async (request: Request) => {
     let matchedPayload: any = null;
 
     for (const c of candidatePayloads) {
-      const res = await fetch(c.url || NIMBUS_V2_SERVICEABILITY_URL, {
-        method: c.isGet ? "GET" : "POST",
+      const res = await fetch(NIMBUS_V2_SERVICEABILITY_URL, {
+        method: "POST",
         headers: commonHeaders,
-        body: c.isGet ? undefined : JSON.stringify(c.payload),
+        body: JSON.stringify(c.payload),
       });
 
       const body = (await res.json().catch(() => ({}))) as any;
@@ -95,7 +119,7 @@ export default async (request: Request) => {
         response: body,
       });
 
-      if (isSuccess && !c.isGet) {
+      if (isSuccess) {
         successfulResponse = body;
         successfulSchemaName = c.name;
         matchedPayload = c.payload;
