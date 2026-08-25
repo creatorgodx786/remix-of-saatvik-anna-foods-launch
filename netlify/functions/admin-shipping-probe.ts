@@ -41,9 +41,9 @@ export default async (request: Request) => {
 
   try {
     const candidatePayloads = [
-      // Schema A: packages array with grams (205)
+      // Schema A: 0.21 kg (205g rounded to 2 decimal places), length: 12, width: 5, height: 25
       {
-        name: "packages array (grams: 205)",
+        name: "Weight 0.21 kg, L: 12, W: 5, H: 25",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
@@ -51,17 +51,17 @@ export default async (request: Request) => {
           orderAmount: 289,
           packages: [
             {
-              weight: 205,
+              weight: 0.21,
               length: 12,
-              breadth: 5,
+              width: 5,
               height: 25,
             },
           ],
         },
       },
-      // Schema B: packages array with kg (0.205)
+      // Schema B: 0.20 kg
       {
-        name: "packages array (kg: 0.205)",
+        name: "Weight 0.20 kg, L: 12, W: 5, H: 25",
         payload: {
           pickupPincode: 221311,
           deliveryPincode: 221011,
@@ -69,29 +69,10 @@ export default async (request: Request) => {
           orderAmount: 289,
           packages: [
             {
-              weight: 0.205,
+              weight: 0.2,
               length: 12,
-              breadth: 5,
+              width: 5,
               height: 25,
-            },
-          ],
-        },
-      },
-      // Schema C: packages array with quantity
-      {
-        name: "packages array with quantity",
-        payload: {
-          pickupPincode: 221311,
-          deliveryPincode: 221011,
-          paymentMode: "prepaid",
-          orderAmount: 289,
-          packages: [
-            {
-              weight: 205,
-              length: 12,
-              breadth: 5,
-              height: 25,
-              quantity: 1,
             },
           ],
         },
@@ -151,6 +132,7 @@ export default async (request: Request) => {
             pickupPincode: 221311,
             destinationPincode: 221011,
             weightGrams: 205,
+            weightKg: matchedPayload?.packages?.[0]?.weight,
             dimensionsCm: "12 x 5 x 25",
             paymentMode: "prepaid",
             orderAmount: 289,
