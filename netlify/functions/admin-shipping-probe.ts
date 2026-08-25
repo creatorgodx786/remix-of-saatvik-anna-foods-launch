@@ -82,7 +82,7 @@ export default async (request: Request) => {
       shipping_charges: 0,
       discount: 0,
       cod_charges: 0,
-      payment_type: "prepaid",
+      payment_mode: "prepaid",
       order_amount: 289,
       packages: [
         {
