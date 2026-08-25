@@ -1,7 +1,5 @@
 import { requireAdminAuth } from "../../src/lib/auth";
 
-const NIMBUS_V2_COURIERS_URL = "https://api-v2.nimbuspost.com/v2/couriers";
-
 export default async (request: Request) => {
   // 1. Enforce POST / GET check for probe
   const probeHeader = request.headers.get("x-probe-token");
@@ -41,42 +39,58 @@ export default async (request: Request) => {
     );
   }
 
+  const serviceabilityPayload = {
+    origin: "221311",
+    destination: "221011",
+    payment_type: "prepaid",
+    order_amount: 289.0,
+    weight: 205,
+    length: 12,
+    breadth: 5,
+    height: 25,
+  };
+
   try {
-    // Test Header Variations
-    const headerSets = [
-      { name: "x-api-key & x-api-secret", headers: { "x-api-key": apiKey, "x-api-secret": apiSecret } },
-      { name: "api-key & api-secret", headers: { "api-key": apiKey, "api-secret": apiSecret } },
-      { name: "api_key & api_secret", headers: { "api_key": apiKey, "api_secret": apiSecret } },
-      { name: "apikey & apisecret", headers: { "apikey": apiKey, "apisecret": apiSecret } },
-      { name: "Bearer apiKey", headers: { "Authorization": `Bearer ${apiKey}` } },
-      { name: "Bearer apiSecret", headers: { "Authorization": `Bearer ${apiSecret}` } },
+    const endpointsToProbe = [
+      { method: "GET", url: "https://api-v2.nimbuspost.com/v2/couriers" },
+      { method: "GET", url: "https://api-v2.nimbuspost.com/couriers" },
+      { method: "GET", url: "https://api-v2.nimbuspost.com/v2/users/profile" },
+      { method: "POST", url: "https://api-v2.nimbuspost.com/v2/courier/serviceability", body: serviceabilityPayload },
+      { method: "POST", url: "https://api-v2.nimbuspost.com/courier/serviceability", body: serviceabilityPayload },
+      { method: "POST", url: "https://api.nimbuspost.com/v1/courier/serviceability", body: serviceabilityPayload },
     ];
 
-    const results: any[] = [];
+    const attempts: any[] = [];
     let successfulData: any = null;
-    let successfulHeaderName = "";
+    let successfulUrl = "";
 
-    for (const h of headerSets) {
-      const res = await fetch(NIMBUS_V2_COURIERS_URL, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          ...h.headers,
-        },
+    for (const ep of endpointsToProbe) {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "x-api-key": apiKey,
+        "x-api-secret": apiSecret,
+      };
+
+      const res = await fetch(ep.url, {
+        method: ep.method,
+        headers,
+        body: ep.body ? JSON.stringify(ep.body) : undefined,
       });
 
       const body = await res.json().catch(() => ({}));
-      results.push({
-        headerVariation: h.name,
+      attempts.push({
+        method: ep.method,
+        url: ep.url,
         httpStatus: res.status,
         statusFlag: body.status,
         message: body.message || res.statusText,
+        dataPreview: typeof body === "object" ? Object.keys(body) : String(body).slice(0, 50),
       });
 
       if (res.ok && (body.status === true || Array.isArray(body.data) || body.data?.couriers)) {
         successfulData = body;
-        successfulHeaderName = h.name;
+        successfulUrl = ep.url;
         break;
       }
     }
@@ -85,11 +99,10 @@ export default async (request: Request) => {
       return new Response(
         JSON.stringify({
           success: false,
-          endpoint: "GET https://api-v2.nimbuspost.com/v2/couriers",
-          message: "All header authentication variations returned 401 Unauthorized from NimbusPost v2.",
-          attempts: results,
+          message: "Probe attempts across NimbusPost v2 endpoints returned non-200.",
           keyPrefix: apiKey.slice(0, 5),
-          secretPrefix: apiSecret.slice(0, 5),
+          secretLength: apiSecret.length,
+          attempts,
         }),
         {
           status: 401,
@@ -98,7 +111,6 @@ export default async (request: Request) => {
       );
     }
 
-    // 4. Sanitize and Structure Couriers Response (Zero Secrets)
     const rawCouriers = Array.isArray(successfulData.data)
       ? successfulData.data
       : Array.isArray(successfulData.data?.couriers)
@@ -108,19 +120,19 @@ export default async (request: Request) => {
     const sanitizedCouriers = rawCouriers.map((c: any) => ({
       courierId: c.id || c.courier_id || c.code || "N/A",
       courierName: c.name || c.courier_name || c.title || "Unknown Courier",
-      isSurface: Boolean(c.is_surface || c.type === "surface"),
-      isAir: Boolean(c.is_air || c.type === "air"),
-      status: c.status !== undefined ? c.status : "active",
+      rate: Number(c.total_charges || c.freight_charges || c.rate || 0),
+      chargeableWeight: c.chargeable_weight || c.charged_weight || "205g",
+      isServiceable: true,
     }));
 
     return new Response(
       JSON.stringify({
         success: true,
-        endpoint: "GET https://api-v2.nimbuspost.com/v2/couriers",
+        endpoint: successfulUrl,
         httpStatus: 200,
         authentication: {
           status: true,
-          successfulHeader: successfulHeaderName,
+          method: "v2 Header Authentication (x-api-key, x-api-secret)",
           message: "Authentication successful",
         },
         couriersCount: sanitizedCouriers.length,
@@ -136,7 +148,7 @@ export default async (request: Request) => {
       JSON.stringify({
         success: false,
         error: "EXECUTION_EXCEPTION",
-        message: err?.message || "Internal exception during NimbusPost v2 couriers lookup.",
+        message: err?.message || "Internal exception during NimbusPost probe.",
       }),
       {
         status: 500,
