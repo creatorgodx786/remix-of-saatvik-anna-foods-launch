@@ -281,7 +281,7 @@ export async function createNimbusShipment(
       address_2: "",
       city: order.city.trim(),
       state: order.state.trim(),
-      pincode: order.pincode.trim(),
+      pincode: Number(order.pincode.trim()),
       phone: order.customerPhone.trim(),
       email: order.customerEmail ? order.customerEmail.trim() : "care@saatvikannafoods.in",
     },
