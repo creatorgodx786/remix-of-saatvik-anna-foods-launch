@@ -259,33 +259,25 @@ export async function createNimbusShipment(
 
   const warehouseId = getNimbusWarehouseId();
 
-  const payload: Record<string, any> = {
+  const phoneDigits = order.customerPhone.replace(/\D/g, "");
+  const numericPhone = Number(phoneDigits.length >= 10 ? phoneDigits.slice(-10) : phoneDigits);
+
+  const payload = {
     order_number: order.orderNumber,
     order_type: "b2c",
-    shipping_charges: Number(order.shippingAmount || 0),
-    discount: Number(order.discount || 0),
-    cod_charges: 0,
     payment_mode: "prepaid",
-    order_amount: Number(order.totalAmount),
-    packages: [
-      {
-        weight: weightKg,
-        length: specs.lengthCm,
-        width: specs.breadthCm,
-        height: specs.heightCm,
-      },
-    ],
+    warehouse_id: warehouseId,
     shipping_address: {
       name: order.customerName.trim(),
+      email: order.customerEmail ? order.customerEmail.trim() : "care@saatvikannafoods.in",
       address: order.shippingAddress.trim(),
-      address_2: "",
+      address_opt: "",
+      pincode: Number(order.pincode.trim()),
       city: order.city.trim(),
       state: order.state.trim(),
-      pincode: Number(order.pincode.trim()),
-      phone: order.customerPhone.trim(),
-      email: order.customerEmail ? order.customerEmail.trim() : "care@saatvikannafoods.in",
+      country: "India",
+      phone: numericPhone,
     },
-    warehouse_id: warehouseId,
     items: [
       {
         name: `${order.productName} (${order.packSize})`,
@@ -294,6 +286,12 @@ export async function createNimbusShipment(
         sku: specs.sku,
       },
     ],
+    package: {
+      weight: weightKg,
+      length: specs.lengthCm,
+      width: specs.breadthCm,
+      height: specs.heightCm,
+    },
   };
 
   return nimbusV2Fetch<NimbusShipmentResponse>("/shipments", {
